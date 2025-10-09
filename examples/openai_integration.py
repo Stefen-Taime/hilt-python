@@ -1,67 +1,102 @@
-"""
-OpenAI integration example.
+"""Example: log OpenAI GPT interactions to HILT."""
 
-This example shows how to log OpenAI API calls with HILT.
-Note: You need to install openai package and set OPENAI_API_KEY
-"""
+from __future__ import annotations
 
-from hilt import Session, Event, Actor, Content, Metrics
+import os
 
-def log_openai_call(session: Session, user_message: str, assistant_message: str, usage: dict):
-    """
-    Log an OpenAI conversation to HILT.
-    
-    Args:
-        session: HILT session
-        user_message: User's message
-        assistant_message: Assistant's response
-        usage: Token usage from OpenAI response
-    """
-    # Log user prompt
-    prompt_event = Event(
-        session_id="openai_session",
-        actor=Actor(type="human", id="user_001"),
-        action="prompt",
-        content=Content(text=user_message)
-    )
-    session.append(prompt_event)
-    
-    # Log AI completion
-    completion_event = Event(
-        session_id="openai_session",
-        actor=Actor(type="agent", id="gpt-4"),
-        action="completion",
-        content=Content(text=assistant_message),
-        metrics=Metrics(
-            tokens={
-                "prompt": usage.get("prompt_tokens", 0),
-                "completion": usage.get("completion_tokens", 0),
-                "total": usage.get("total_tokens", 0)
-            },
-            cost_usd=usage.get("total_tokens", 0) * 0.00003  # Approximate
+from openai import OpenAI, OpenAIError, RateLimitError
+
+from hilt import Actor, Content, Event, Metrics, Session
+
+
+def log_openai_call(
+    session: Session,
+    *,
+    user_message: str,
+    session_id: str = "openai_session",
+    user_id: str = "user",
+    assistant_id: str = "gpt-4o-mini",
+) -> None:
+    """Call OpenAI ChatCompletions API and persist the interaction."""
+
+    client = OpenAI()
+
+    session.append(
+        Event(
+            session_id=session_id,
+            actor=Actor(type="human", id=user_id),
+            action="prompt",
+            content=Content(text=user_message),
         )
     )
-    session.append(completion_event)
 
-def main():
-    """Example of logging OpenAI conversations."""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": user_message}],
+        )
+        assistant_message = response.choices[0].message["content"]
+        usage = response.usage or {}
+
+        session.append(
+            Event(
+                session_id=session_id,
+                actor=Actor(type="agent", id=assistant_id),
+                action="completion",
+                content=Content(text=assistant_message),
+                metrics=Metrics(
+                    tokens={
+                        "prompt": usage.get("prompt_tokens", 0),
+                        "completion": usage.get("completion_tokens", 0),
+                        "total": usage.get("total_tokens", 0),
+                    },
+                ),
+            )
+        )
+
+    except RateLimitError as error:
+        session.append(
+            Event(
+                session_id=session_id,
+                actor=Actor(type="system", id="openai"),
+                action="system",
+                content=Content(text=f"Rate limit reached: {error}"),
+                extensions={"error_code": "rate_limit"},
+            )
+        )
+        raise
+
+    except OpenAIError as error:
+        session.append(
+            Event(
+                session_id=session_id,
+                actor=Actor(type="system", id="openai"),
+                action="system",
+                content=Content(text=f"OpenAI error: {error}"),
+                extensions={"error_code": "api_error"},
+            )
+        )
+        raise
+
+
+def main() -> None:
     print("🤖 OpenAI + HILT Integration Example\n")
-    
-    # Simulated OpenAI call (replace with real API call)
+
+    if not os.getenv("OPENAI_API_KEY"):
+        print("⚠️  Set OPENAI_API_KEY before running this example.")
+        return
+
     user_message = "Explain quantum computing in simple terms"
-    assistant_message = "Quantum computing uses quantum bits (qubits) that can be in multiple states..."
-    usage = {
-        "prompt_tokens": 15,
-        "completion_tokens": 50,
-        "total_tokens": 65
-    }
-    
-    # Log to HILT
-    with Session("logs/openai.hilt.jsonl") as session:
-        log_openai_call(session, user_message, assistant_message, usage)
-    
-    print("✅ OpenAI conversation logged successfully!")
-    print(f"📁 Check logs/openai.hilt.jsonl for details")
+
+    try:
+        with Session("logs/openai.hilt.jsonl") as session:
+            log_openai_call(session, user_message=user_message)
+        print("✅ Interaction logged to logs/openai.hilt.jsonl")
+    except RateLimitError:
+        print("❌ Rate limit exceeded; error recorded in HILT session.")
+    except OpenAIError as error:
+        print(f"❌ OpenAI API error: {error}; details recorded in HILT session.")
+
 
 if __name__ == "__main__":
     main()

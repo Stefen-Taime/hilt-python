@@ -78,6 +78,7 @@ Refer to [docs/cli.md](docs/cli.md) for detailed options.
 - LangChain callback handler: `HILTCallbackHandler`
 - OpenAI helper pattern (see `examples/openai_integration.py`)
 - Anthropic Claude helper: `log_claude_interaction`
+- Google Gemini helper: `log_gemini_interaction`
 
 More details in [docs/integrations.md](docs/integrations.md).
 

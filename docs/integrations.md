@@ -67,6 +67,23 @@ with Session("logs/claude.hilt.jsonl") as session:
 
 Tokens are extracted from `response.usage`; content blocks are flattened into event text.
 
+## Google Gemini
+
+```python
+from google import generativeai as genai
+from hilt.io.session import Session
+from hilt.integrations.gemini import log_gemini_interaction
+
+genai.configure(api_key="...")
+model = genai.GenerativeModel("gemini-1.5-pro")
+result = model.generate_content("Summarise the Solar System")
+
+with Session("logs/gemini.hilt.jsonl") as session:
+    log_gemini_interaction(session, user_message="Summarise the Solar System", response=result)
+```
+
+The helper pulls text from candidate parts and token counts from `usageMetadata` when available.
+
 ## Custom Integrations
 
 When writing your own adapters:

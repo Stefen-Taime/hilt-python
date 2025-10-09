@@ -26,6 +26,7 @@ pyarrow = { version = ">=14.0", optional = true }
 click = "^8.1"
 rich = "^13.0"
 langchain = { version = ">=0.1.0", optional = true }
+openai = "^2.2.0"
 
 [tool.poetry.extras]
 parquet = ["pyarrow"]
