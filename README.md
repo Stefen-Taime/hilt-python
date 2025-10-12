@@ -1,4 +1,4 @@
-# HILT – Zero-Friction LLM Observability
+# HILT – Human–AI Log Tracing
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/hilt-format/hilt-python/test.yml?branch=main)](https://github.com/hilt-format/hilt-python/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/hilt-format/hilt-python)](https://codecov.io/gh/hilt-format/hilt-python)
@@ -6,7 +6,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-HILT automatically captures every LLM interaction your application makes. Drop in one line at startup and get structured events with prompts, completions, metrics, and error context—no refactors, no custom wrappers.
+**HILT** is a privacy-first, open-source format for logging human–AI interactions. Drop in one line at startup and every LLM call is captured with prompts, completions, metrics, and error context—no refactors, no custom wrappers.
 
 ## What’s inside today
 
