@@ -7,6 +7,7 @@ license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://hilt-format.org"
 repository = "https://github.com/hilt-format/hilt-python"
+packages = [{include = "hilt"}]  # <-- AJOUTEZ CETTE LIGNE
 keywords = ["ai", "logging", "llm", "privacy", "gdpr", "openai"]
 classifiers = [
     "Development Status :: 3 - Alpha",
