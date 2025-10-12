@@ -2,7 +2,7 @@
 name = "hilt"
 version = "0.1.2"
 description = "HILT: Human-IA Log Trace - Privacy-first logging format for AI interactions"
-authors = ["HILT Team <contact@hilt-format.org>"]
+authors = ["HILT Team <info@mcsedition.com"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://hilt-format.org"
