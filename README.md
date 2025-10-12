@@ -1,4 +1,4 @@
-# HILT - Human-IA Log Trace
+# HILT – Zero-Friction LLM Observability
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/hilt-format/hilt-python/test.yml?branch=main)](https://github.com/hilt-format/hilt-python/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/hilt-format/hilt-python)](https://codecov.io/gh/hilt-format/hilt-python)
@@ -6,17 +6,16 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**HILT** (Human-IA Log Trace) is a privacy-first, vendor-neutral format for recording AI interactions. Capture prompts, completions, tool calls, metrics, and provenance across your AI stack.
+HILT automatically captures every LLM interaction your application makes. Drop in one line at startup and get structured events with prompts, completions, metrics, and error context—no refactors, no custom wrappers.
 
-## Features
+## What’s inside today
 
-- 🔒 **Privacy-aware** logging with hashing, encryption fields, and consent tracking.
-- 📊 **Analytics-ready** exports via CSV and Parquet converters.
-- 🛠 **Rich CLI tooling** for validation, statistics, and conversion pipelines.
-- 🔌 **Integrations** with LangChain callbacks, OpenAI patterns, and Anthropic Claude helper.
-- 🗂 **Flexible storage** via local JSONL files or Google Sheets (customisable columns, extra `sheets`).
-- 🌐 **API-ready** example stack with FastAPI + Uvicorn (extra `api`).
-- ⚙️ **Extensible schema** using Pydantic models and custom extensions.
+- **One-line auto-instrumentation** for the official OpenAI Python SDK (`client.chat.completions.create`)
+- **Deterministic conversation threading** with prompt/completion links and reply metadata
+- **Rich telemetry**: latency, token usage, cost estimates, HTTP-style status codes, and error surfaces
+- **Storage backends** you control: append-only JSONL files or real-time Google Sheets dashboards
+- **Thread-safe context management** so you can override sessions per request, per worker, or per tenant
+- **Manual event logging** via `Session.append()` for tool calls, human feedback, or guardrail results
 
 ## Installation
 
@@ -24,94 +23,126 @@
 pip install hilt
 ```
 
-Optional extras:
+Need Google Sheets streaming? Install the Sheets extra:
 
 ```bash
-pip install "hilt[parquet,langchain,sheets,api]"
+pip install "hilt[sheets]"
 ```
 
-## Quickstart
-
-Create and log your first event:
+## Quick start
 
 ```python
-from hilt import Session, Event, Actor, Content
+from hilt import instrument, uninstrument
+from openai import OpenAI
 
-event = Event(
-    session_id="demo-session",
-    actor=Actor(type="human", id="alice"),
-    action="prompt",
-    content=Content(text="Hello, AI!")
+# Enable automatic logging (writes to logs/chat.jsonl by default)
+instrument(backend="local", filepath="logs/chat.jsonl")
+
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Give me three onboarding tips"}],
 )
 
-with Session("logs/demo.hilt.jsonl") as session:
-    session.append(event)
+print(response.choices[0].message.content)
+
+# Stop logging when your app shuts down
+uninstrument()
 ```
 
-Read events back:
+After the single `instrument()` call:
+
+- Prompts and completions are recorded as separate events
+- Latency, tokens, cost, and status codes are populated automatically
+- Conversation IDs remain stable so you can trace every exchange end to end
+
+## Storage options
+
+### Local JSONL (default)
 
 ```python
-from hilt import Session
-
-events = list(Session("logs/demo.hilt.jsonl", mode="r").read())
-print(events[0].content.text)
+instrument(backend="local", filepath="logs/app.jsonl")
 ```
 
-Convert to CSV:
+- Privacy-first: data never leaves your environment
+- Plays nicely with analytics tooling (Python, Pandas, Spark, etc.)
+
+### Google Sheets (real time)
 
 ```python
-from hilt.converters.csv import convert_to_csv
-
-convert_to_csv("logs/demo.hilt.jsonl", "logs/demo.csv")
-```
-
-Use Google Sheets for collaborative dashboards (requires `pip install "hilt[sheets]"`):
-
-```python
-with Session(
+instrument(
     backend="sheets",
-    sheet_id="YOUR_SHEET_ID",
-    credentials_path="service-account.json",
-    columns=[
-        "timestamp",
-        "speaker",
-        "message",
-        "tokens_out",
-        "cost_usd",
-        "status_code",
-    ],
-) as session:
-    session.append(event)
+    sheet_id="1abc...",
+    credentials_path="credentials.json",
+    worksheet_name="LLM Logs",
+    columns=["timestamp", "message", "cost_usd", "status_code"],
+)
 ```
 
-## CLI
+- Great for support, QA, or cost monitoring teams
+- Columns control both ordering and visibility
+- Works with `credentials_path` or in-memory `credentials_json`
 
-```bash
-hilt validate logs/demo.hilt.jsonl
-hilt stats logs/demo.hilt.jsonl --json
-hilt convert logs/demo.hilt.jsonl --to parquet --compression gzip
+## Advanced usage
+
+### Provider selection
+
+```python
+instrument(
+    backend="local",
+    filepath="logs/app.jsonl",
+    providers=["openai"],  # Anthropic / Gemini planned
+)
 ```
 
-Refer to [docs/cli.md](docs/cli.md) for detailed options.
+Passing an empty list opens the session without patching any providers—useful for manual logging scenarios.
 
-## Integrations
+### Session overrides
 
-- LangChain callback handler: `HILTCallbackHandler`
-- OpenAI helpers: `log_chat_completion`, `log_chat_streaming`, `log_rag_interaction` (latency, cost, and status metadata included)
-- Anthropic Claude helper: `log_claude_interaction`
-- Google Gemini helper: `log_gemini_interaction`
-- FastAPI example API: `examples/chatbot_api.py` (install with `hilt[api]`)
+```python
+from hilt.instrumentation import get_context
+from hilt.io.session import Session
 
-More details in [docs/integrations.md](docs/integrations.md).
+debug_session = Session("logs/debug.jsonl")
+debug_session.open()
 
-## Contributing
+with get_context().use_session(debug_session):
+    # Only calls inside this block write to debug.jsonl
+    client.chat.completions.create(...)
+```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and release checklist. Join us in shaping the future of AI observability!
+### Manual events
 
-## Documentation
+```python
+from hilt import Event, Actor, Content
+from hilt.instrumentation import get_context
 
-Full documentation lives in [docs/index.md](docs/index.md): installation, quickstart, API reference, CLI guide, integrations, privacy, advanced usage, contributing, and FAQ.
+session = get_context().session
+
+session.append(
+    Event(
+        session_id="conv_custom",
+        actor=Actor(type="system", id="guardrail"),
+        action="feedback",
+        content=Content(text="Response flagged for manual review"),
+        extensions={"score": 0.42},
+    )
+)
+```
+
+## Troubleshooting highlights
+
+- **Nothing recorded?** Ensure `instrument()` runs before importing the OpenAI client.
+- **Async apps?** Use the same call; the instrumentation is thread-safe and works with `AsyncOpenAI`.
+- **Large logs?** Rotate files daily (`logs/app-YYYY-MM-DD.jsonl`) and prune with a cron job.
+- **Sheets failing?** Double-check the service account has editor access and that `hilt[sheets]` is installed.
+
+See `docs/` for deeper guides on privacy, advanced contexts, and FAQ.
+
+## Development
+
+Contributions are welcome! Start with [CONTRIBUTING.md](CONTRIBUTING.md).The test suite lives in `tests/`, and linting/type checking is configured via Ruff, Black, and MyPy.
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+Released under the [Apache License 2.0](LICENSE).
