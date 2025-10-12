@@ -7,7 +7,9 @@ HILT plays nicely with popular AI frameworks and SDKs. This page covers LangChai
 1. [LangChain](#langchain)
 2. [OpenAI SDK](#openai-sdk)
 3. [Anthropic Claude](#anthropic-claude)
-4. [Custom Integrations](#custom-integrations)
+4. [Google Gemini](#google-gemini)
+5. [REST API Example](#rest-api-example)
+6. [Custom Integrations](#custom-integrations)
 
 ## LangChain
 
@@ -35,21 +37,39 @@ Install extras: `pip install "hilt[langchain]"`.
 
 ## OpenAI SDK
 
-Use the `log_openai_call` helper (or roll your own) to record OpenAI chats.
+Use the convenience helpers for chat completions, streaming output, and RAG logging. Each helper now:
 
-See `examples/openai_integration.py` for a pattern that records prompt/completion pairs. The code boils down to:
+- Converts simple session IDs into deterministic conversation UUIDs.
+- Records latency, token usage, and cost (based on current OpenAI pricing).
+- Stores HTTP-like status codes and `reply_to` links for traceability.
+- Emits `system` events on rate limits or API errors.
 
 ```python
-from openai import OpenAI
-from hilt import Session, Event, Actor, Content, Metrics
-
-client = OpenAI()
-response = client.chat.completions.create(...)
+from hilt.io.session import Session
+from hilt.integrations.openai import (
+    log_chat_completion,
+    log_chat_streaming,
+    log_rag_interaction,
+)
 
 with Session("logs/openai.hilt.jsonl") as session:
-    session.append(Event(...))  # prompt
-    session.append(Event(...))  # completion with Metrics(tokens=..., cost_usd=...)
+    log_chat_completion(session, user_message="Translate hello to Spanish")
+    log_chat_streaming(session, user_message="Explain quantum computing briefly")
+
+with Session("logs/rag.hilt.jsonl") as session:
+    log_rag_interaction(
+        session,
+        user_message="What is alpha?",
+        answer="Alpha is…",
+        retrieved_documents=[{"id": "doc-1", "text": "Alpha doc"}],
+    )
 ```
+
+- `log_chat_completion` enregistre prompt + réponse + métriques (latence, tokens, coûts, statut).
+- `log_chat_streaming` crée des événements `completion_chunk` pour chaque delta, agrège la réponse finale et conserve les métriques complètes.
+- `log_rag_interaction` relie prompt, documents récupérés (`retrieval`) et réponse finale (`completion`) avec références (`reply_to`), scores et coûts calculés lorsque les tokens sont fournis.
+
+Voir `examples/openai_integration.py` pour un script complet avec affichage et conversion CSV.
 
 ## Anthropic Claude
 
@@ -83,6 +103,17 @@ with Session("logs/gemini.hilt.jsonl") as session:
 ```
 
 The helper pulls text from candidate parts and token counts from `usageMetadata` when available.
+
+## REST API Example
+
+Ship a minimal chatbot API using the FastAPI stack bundled in the `api` extra.
+
+```bash
+pip install "hilt[api]"
+python examples/chatbot_api.py
+```
+
+The example stores conversations in `logs/chatbot.hilt.jsonl`, exposes a `/chat` endpoint, and streams metrics that work with the Google Sheets backend.
 
 ## Custom Integrations
 

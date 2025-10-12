@@ -33,6 +33,7 @@ event.extensions = {"workflow_step": "rank_candidates"}
 - Push converted Parquet files to data warehouses (BigQuery, Snowflake, DuckDB).
 - Automate validation in CI/CD (`hilt validate` + `hilt stats --json`).
 - Monitor summary metrics for drift (tokens, latency, cost).
+- Use the Google Sheets backend for rapid prototyping or manual QA reviews (`pip install "hilt[sheets]"`), customising columns to show only the metrics your team needs.
 
 ## Multi-threading & Concurrency
 

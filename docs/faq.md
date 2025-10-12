@@ -22,6 +22,10 @@ Events are validated using Pydantic models (`Event`, `Actor`, `Metrics`, etc.), 
 
 Use one JSONL file per day or session. The CLI supports conversion and stats on each shard.
 
+### Can I control which fields appear in Google Sheets?
+
+Yes. When you construct `Session(backend="sheets", ...)`, pass a `columns=[...]` list to choose and order the available fields (e.g., `"timestamp"`, `"message"`, `"tokens_out"`, `"cost_usd"`). Any omitted columns are hidden from the sheet.
+
 ## Troubleshooting
 
 ### `hilt validate` reports invalid JSON
@@ -35,6 +39,16 @@ Install the optional dependency:
 ```bash
 pip install "hilt[parquet]"
 ```
+
+### Google Sheets backend raises `ImportError`
+
+Install the Sheets extras and provide credentials:
+
+```bash
+pip install "hilt[sheets]"
+```
+
+Then pass `backend="sheets"` along with `sheet_id` and `credentials_path` when constructing the session.
 
 ### LangChain callbacks are not logged
 

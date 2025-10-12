@@ -44,3 +44,4 @@ def test_log_gemini_interaction(tmp_path: Path) -> None:
     assert completion.action == "completion"
     assert completion.content.text == "Hello!"
     assert completion.metrics.tokens["total"] == 24
+    assert completion.extensions["reply_to"] == events[0].event_id

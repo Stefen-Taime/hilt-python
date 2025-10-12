@@ -35,3 +35,4 @@ def test_log_claude_interaction(tmp_path: Path) -> None:
     assert events[1].action == "completion"
     assert events[1].content.text == "Hi there!"
     assert events[1].metrics.tokens["total"] == 12
+    assert events[1].extensions["reply_to"] == events[0].event_id

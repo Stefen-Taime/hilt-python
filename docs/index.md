@@ -8,9 +8,11 @@ HILT (Human‑IA Log Trace) is a vendor‑neutral logging format for recording A
 
 - 🧾 **Structured events** powered by Pydantic models (type-safe)
 - 🧰 **Session writer/reader** for JSONL storage
+- 🗂 **Flexible storage options** including Google Sheets with custom columns (requires `sheets` extra)
 - 📊 **Converters** to CSV/Parquet for analytics
 - 🛠 **CLI tools** for validation, stats, and conversion
 - 🔌 **Integrations** for LangChain, OpenAI, Anthropic Claude, and custom callbacks
+- 🌐 **Example API** powered by FastAPI + Uvicorn (requires `api` extra)
 - 🔒 **Privacy-aware** design with hashing, timestamps, and extension fields
 
 ## Quick Example

@@ -34,6 +34,18 @@ with Session("logs/quickstart.hilt.jsonl") as session:
 
 This stores each event as a JSON line in `logs/quickstart.hilt.jsonl`.
 
+Need collaborative logging? Install the `sheets` extra and switch the backend:
+
+```python
+with Session(
+    backend="sheets",
+    sheet_id="YOUR_SHEET_ID",
+    credentials_path="service-account.json",
+    columns=["timestamp", "speaker", "message", "tokens_out", "cost_usd"],
+) as session:
+    session.append(event)
+```
+
 ## Read Events Back
 
 ```python

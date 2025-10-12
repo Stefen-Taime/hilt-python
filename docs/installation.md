@@ -35,7 +35,7 @@ poetry add hilt
 To include optional extras:
 
 ```bash
-poetry add "hilt[parquet,langchain]"
+poetry add "hilt[parquet,langchain,sheets,api]"
 ```
 
 ## Install from Source
@@ -56,15 +56,17 @@ pip install -e .
 
 HILT ships with extras for ecosystem integrations:
 
-| Extra        | Packages              | Purpose                        |
-|--------------|-----------------------|--------------------------------|
-| `parquet`    | `pyarrow`             | Parquet conversion             |
-| `langchain`  | `langchain`           | LangChain callback handler     |
+| Extra        | Packages                          | Purpose                                  |
+|--------------|-----------------------------------|------------------------------------------|
+| `parquet`    | `pyarrow`                         | Parquet conversion                       |
+| `langchain`  | `langchain`                       | LangChain callback handler               |
+| `sheets`     | `gspread`, `google-auth`          | Google Sheets backend for `Session`      |
+| `api`        | `fastapi`, `uvicorn`, `python-dotenv` | FastAPI chatbot sample API               |
 
 Install via:
 
 ```bash
-pip install "hilt[parquet,langchain]"
+pip install "hilt[parquet,langchain,sheets,api]"
 ```
 
 Refer to [Integrations](integrations.md) for usage examples.

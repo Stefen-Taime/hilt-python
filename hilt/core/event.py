@@ -1,131 +1,120 @@
-"""HILT Event data model."""
+"""Event model for HILT."""
 
-from datetime import datetime, timezone
-from typing import Any, Optional
-from uuid import uuid4
+from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+import json
+import uuid
+from datetime import datetime
+from typing import Any, Dict, Optional, Union
 
+from pydantic import BaseModel, Field, field_validator
 
-class Actor(BaseModel):
-    """Actor of an event (human, agent, tool, system)."""
-
-    type: str = Field(..., pattern="^(human|agent|tool|system)$")
-    id: str = Field(..., min_length=1)
-    did: Optional[str] = None  # Decentralized Identifier
-
-    model_config = ConfigDict(frozen=True)  # Immutable
+from hilt.core.actor import Actor
+from hilt.utils.timestamp import get_utc_timestamp
 
 
 class Content(BaseModel):
-    """Content of an event."""
-
+    """Content of an event (text, images, etc.)."""
+    
     text: Optional[str] = None
-    text_hash: Optional[str] = None
-    text_encrypted: Optional[str] = None
-    media: list[dict[str, Any]] = Field(default_factory=list)
+    images: Optional[list] = None
+    metadata: Optional[Dict[str, Any]] = None
+    
+    class Config:
+        extra = "allow"
 
 
 class Metrics(BaseModel):
-    """Performance metrics."""
-
-    latency_ms: Optional[int] = None
-    tokens: Optional[dict[str, int]] = None  # prompt, completion, total
+    """Metrics associated with an event."""
+    
+    tokens: Optional[Dict[str, int]] = None
     cost_usd: Optional[float] = None
-
-
-class Privacy(BaseModel):
-    """Privacy/GDPR information."""
-
-    pii_detected: list[str] = Field(default_factory=list)
-    redaction_applied: bool = False
-    consent: Optional[dict[str, Any]] = None
+    latency_ms: Optional[int] = None
+    
+    class Config:
+        extra = "allow"
 
 
 class Event(BaseModel):
     """
-    HILT Event representing a human-AI interaction.
-
-    Attributes:
-        hilt_version: HILT format version
-        event_id: Unique identifier (UUID)
-        timestamp: ISO 8601 timestamp
-        session_id: Session identifier
-        actor: Event actor
-        action: Action type (prompt, completion, etc.)
-        content: Event content
-        provenance: Provenance (model, tools)
-        metrics: Metrics (latency, tokens, cost)
-        privacy: Privacy information
-        integrity: Signature and hashes
-        extensions: Custom fields
-
-    Example:
-        >>> event = Event(
-        ...     session_id="sess_123",
-        ...     actor=Actor(type="human", id="alice"),
-        ...     action="prompt",
-        ...     content=Content(text="Hello")
-        ... )
-        >>> print(event.event_id)
-        018c5e9e-87d2-7000-9c4f-a1b2c3d4e5f6
+    Core event model for HILT.
+    
+    Represents a single interaction in a conversation.
     """
-
-    hilt_version: str = "1.0.0"
-    event_id: str = Field(default_factory=lambda: str(uuid4()))
-    timestamp: str = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    )
+    
+    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: datetime = Field(default_factory=get_utc_timestamp)
     session_id: str
-    actor: Actor
+    actor: Union[Actor, Dict[str, Any]]
     action: str
-
-    # Optional fields
-    content: Optional[Content] = None
-    provenance: Optional[dict[str, Any]] = None
+    content: Union[Content, Dict[str, Any], None] = None
     metrics: Optional[Metrics] = None
-    privacy: Optional[Privacy] = None
-    integrity: Optional[dict[str, Any]] = None
-    extensions: Optional[dict[str, Any]] = None
-
-    @field_validator("action")
+    provenance: Optional[Dict[str, Any]] = None
+    extensions: Optional[Dict[str, Any]] = None
+    
+    @field_validator('actor', mode='before')
     @classmethod
-    def validate_action(cls, v: str) -> str:
-        """Validate action is one of the allowed types."""
-        valid_actions = {
-            "prompt",
-            "completion",
-            "tool_call",
-            "tool_result",
-            "feedback",
-            "retrieval",
-            "rerank",
-            "embedding",
-            "system",
-        }
-        if v not in valid_actions:
-            raise ValueError(f"Invalid action: {v}. Must be one of {valid_actions}")
+    def validate_actor(cls, v):
+        """Convert dict to Actor if needed."""
+        if isinstance(v, dict):
+            return Actor(**v)
         return v
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return self.model_dump(exclude_none=True, by_alias=True)
-
-    def to_json(self) -> str:
-        """Convert to JSON string."""
-        return self.model_dump_json(exclude_none=True, by_alias=True)
-
+    
+    @field_validator('content', mode='before')
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Event":
+    def validate_content(cls, v):
+        """Convert dict to Content if needed."""
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return Content(**v)
+        return v
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert Event to dictionary."""
+        result = {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "session_id": self.session_id,
+            "actor": self.actor.to_dict() if isinstance(self.actor, Actor) else self.actor,
+            "action": self.action,
+        }
+        
+        if self.content:
+            result["content"] = self.content.model_dump(exclude_none=True) if isinstance(self.content, Content) else self.content
+        
+        if self.metrics:
+            result["metrics"] = self.metrics.model_dump(exclude_none=True)
+        
+        if self.provenance:
+            result["provenance"] = self.provenance
+        
+        if self.extensions:
+            result["extensions"] = self.extensions
+        
+        return result
+    
+    def to_json(self) -> str:
+        """Convert Event to JSON string."""
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Event":
         """Create Event from dictionary."""
-        return cls.model_validate(data)
-
+        # Parse timestamp if it's a string
+        if isinstance(data.get("timestamp"), str):
+            data["timestamp"] = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+        
+        return cls(**data)
+    
     @classmethod
     def from_json(cls, json_str: str) -> "Event":
         """Create Event from JSON string."""
-        return cls.model_validate_json(json_str)
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+    
+    class Config:
+        arbitrary_types_allowed = True
 
-    model_config = ConfigDict(
-        extra="allow",  # Allow extra fields (extensions)
-        validate_assignment=True  # Validate on assignment
-    )
+
+__all__ = ["Event", "Content", "Metrics"]

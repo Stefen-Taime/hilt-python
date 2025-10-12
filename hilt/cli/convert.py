@@ -1,3 +1,4 @@
+# hilt/cli/convert.py
 """CLI command to convert HILT JSONL logs into other formats."""
 
 from __future__ import annotations
@@ -30,7 +31,13 @@ from .main import cli
     "--columns",
     type=str,
     default=None,
-    help="Comma-separated column names (CSV only).",
+    help="Comma-separated column names (CSV only, for flat format).",
+)
+@click.option(
+    "--csv-format",  # 👈 NOUVEAU
+    type=click.Choice(["readable", "detailed", "flat"]),
+    default="readable",
+    help="CSV output format: readable (default, 5 columns), detailed (11 columns with metadata), or flat (all columns, legacy).",
 )
 @click.option(
     "--compression",
@@ -45,9 +52,25 @@ def convert(
     format: str,
     output: Optional[Path],
     columns: Optional[str],
+    csv_format: str,  # 👈 NOUVEAU
     compression: str,
 ) -> None:
-    """Convert HILT file to another format."""
+    """Convert HILT file to CSV or Parquet format.
+    
+    Examples:
+    
+        # Readable CSV (default) - 5 clean columns
+        hilt convert logs/session.hilt.jsonl --to csv
+        
+        # Detailed CSV - 11 columns with metadata
+        hilt convert logs/session.hilt.jsonl --to csv --csv-format detailed
+        
+        # Flat CSV (legacy) - all columns flattened
+        hilt convert logs/session.hilt.jsonl --to csv --csv-format flat
+        
+        # Parquet format
+        hilt convert logs/session.hilt.jsonl --to parquet
+    """
     console = Console()
     try:
         output_path = output or _default_output_path(input_file, format)
@@ -60,11 +83,12 @@ def convert(
                 input_file=input_file,
                 output_file=output_path,
                 columns=_parse_columns(columns),
+                csv_format=csv_format,  # 👈 NOUVEAU
                 compression=compression,
                 progress=progress,
                 task=task,
             )
-        _print_success(console, format, input_file, output_path, total_events)
+        _print_success(console, format, input_file, output_path, total_events, csv_format)  # 👈 MODIFIÉ
     except Exception as error:  # noqa: BLE001 - surface CLI errors
         console.print(f"[red]Conversion failed: {error}[/]")
         ctx.exit(1)
@@ -77,12 +101,37 @@ def _run_conversion(
     input_file: Path,
     output_file: Path,
     columns: Optional[List[str]],
+    csv_format: str,  # 👈 NOUVEAU
     compression: str,
     progress: Progress,
     task: TaskID,
 ) -> None:
     if format == "csv":
-        convert_to_csv(str(input_file), str(output_file), columns=columns)
+        # Déterminer les paramètres selon le format CSV choisi
+        if csv_format == "flat":
+            # Mode legacy : ancien comportement avec colonnes aplaties
+            convert_to_csv(
+                str(input_file),
+                str(output_file),
+                columns=columns,
+                readable=False
+            )
+        elif csv_format == "detailed":
+            # Mode détaillé : format lisible avec toutes les métadonnées
+            convert_to_csv(
+                str(input_file),
+                str(output_file),
+                readable=True,
+                include_metadata=True
+            )
+        else:  # "readable" (default)
+            # Mode lisible : format simple et propre
+            convert_to_csv(
+                str(input_file),
+                str(output_file),
+                readable=True,
+                include_metadata=False
+            )
     elif format == "parquet":
         convert_to_parquet(str(input_file), str(output_file), compression=compression)
     else:  # pragma: no cover - safeguarded by click.Choice
@@ -130,6 +179,7 @@ def _print_success(
     input_file: Path,
     output_file: Path,
     events: int,
+    csv_format: str = "readable",  # 👈 NOUVEAU
 ) -> None:
     size = output_file.stat().st_size if output_file.exists() else 0
     human_size = _format_size(size)
@@ -138,6 +188,15 @@ def _print_success(
         f"{icon} Successfully converted to {format.upper()} ({events:,} events)",
     )
     console.print(f"  Output: {output_file} ({human_size})")
+    
+    # Afficher le format CSV utilisé
+    if format == "csv":
+        format_desc = {
+            "readable": "readable (5 columns)",
+            "detailed": "detailed (11 columns)",
+            "flat": "flat (all columns)"
+        }
+        console.print(f"  Format: {format_desc.get(csv_format, csv_format)}")
 
 
 def _format_size(size_bytes: int) -> str:

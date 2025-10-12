@@ -2,42 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 
-def now_iso8601() -> str:
-    """Return the current UTC time formatted as ISO 8601 with millisecond precision.
-
-    Example:
-        "2025-10-08T14:30:45.123Z"
-
-    Returns:
-        A string representing the current time in ISO 8601 format.
-    """
-    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+def get_utc_timestamp() -> datetime:
+    """Get current UTC timestamp."""
+    return datetime.now(timezone.utc)
 
 
-def parse_timestamp(ts: str) -> datetime:
-    """Parse an ISO 8601 timestamp into a timezone-aware datetime instance.
+def parse_timestamp(timestamp_str: str) -> datetime:
+    """Parse ISO format timestamp string."""
+    return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
 
-    Args:
-        ts: The timestamp string to parse.
 
-    Returns:
-        A timezone-aware :class:`datetime.datetime` object in UTC.
-
-    Raises:
-        ValueError: If the timestamp cannot be parsed.
-    """
-    text = ts.strip()
-    if not text:
-        raise ValueError("Timestamp cannot be empty.")
-
-    if text.endswith("Z"):
-        text = f"{text[:-1]}+00:00"
-
-    dt = datetime.fromisoformat(text)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-
-    return dt.astimezone(UTC)
+__all__ = ["get_utc_timestamp", "parse_timestamp"]

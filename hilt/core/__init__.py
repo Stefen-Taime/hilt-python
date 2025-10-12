@@ -1,15 +1,17 @@
-"""Core HILT data models and validation."""
+"""Core HILT models and exceptions."""
 
-from hilt.core.event import Event, Actor, Content, Metrics, Privacy
-from hilt.core.exceptions import HILTError, ValidationError, FileError
+from __future__ import annotations
+
+from hilt.core.event import Event, Content, Metrics
+from hilt.core.actor import Actor
+from hilt.core.exceptions import HILTError, ValidationError, SessionError
 
 __all__ = [
     "Event",
-    "Actor",
     "Content",
     "Metrics",
-    "Privacy",
+    "Actor",
     "HILTError",
     "ValidationError",
-    "FileError",
+    "SessionError",
 ]

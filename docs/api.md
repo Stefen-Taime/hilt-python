@@ -25,7 +25,7 @@ Represents a single interaction in a session.
 - `timestamp: str` – ISO 8601 timestamp (UTC).
 - `session_id: str` – Conversation identifier.
 - `actor: Actor` – Entity performing the action.
-- `action: str` – One of `prompt`, `completion`, `tool_call`, `tool_result`, `feedback`, `retrieval`, `rerank`, `embedding`, `system`.
+- `action: str` – One of `prompt`, `completion`, `completion_chunk`, `tool_call`, `tool_result`, `feedback`, `retrieval`, `rerank`, `embedding`, `system`.
 - `content: Content | None` – Payload data.
 - `provenance: dict | None` – Source metadata (model, tools, chain IDs).
 - `metrics: Metrics | None` – Latency, tokens, costs, etc.
@@ -93,7 +93,7 @@ Tracks privacy information and consent.
 
 ### `Session`
 
-Context manager for reading/writing JSONL logs.
+Context manager for reading/writing JSONL logs or sending events directly to Google Sheets dashboards.
 
 ```python
 from hilt import Session, Event, Actor
@@ -106,16 +106,48 @@ for event in reader.read():
     print(event.session_id)
 ```
 
+Use the Google Sheets backend for collaborative logging (requires the `sheets` extra):
+
+```python
+from hilt import Session
+
+with Session(
+    backend="sheets",
+    sheet_id="YOUR_SHEET_ID",
+    credentials_path="service-account.json",
+) as session:
+    ...
+```
+
+You can tailor the sheet layout by selecting columns:
+
+```python
+with Session(
+    backend="sheets",
+    sheet_id="YOUR_SHEET_ID",
+    credentials_path="service-account.json",
+    columns=["timestamp", "speaker", "message", "tokens_out", "cost_usd"],
+) as session:
+    session.append(Event(...))
+```
+
 **Parameters**
 
-- `filepath: str | Path`
-- `mode: str` – `"a"` (append) by default, or `"r"` for read.
-- `create_dirs: bool` – Create parent directories when writing.
-- `encoding: str` – Default `utf-8`.
+- `backend_or_filepath: str | Path | None` – Positional helper; pass a path (`"logs/app.hilt.jsonl"`) to select the local backend automatically, or the literal strings `"local"` / `"sheets"` to force a backend.
+- `backend: str | None` – Explicit backend override (`"local"` or `"sheets"`).
+- `filepath: str | Path | None` – Destination JSONL file for the local backend (required unless supplied positionally).
+- `mode: str` – `"a"` (append) by default, or `"r"` for read (local backend).
+- `create_dirs: bool` – Create parent directories when writing (local backend).
+- `encoding: str` – Default `utf-8` (local backend).
+- `sheet_id: str | None` – Google Sheet identifier (required for `"sheets"` backend).
+- `credentials_path: str | None` – Path to Google service account JSON.
+- `credentials_json: dict | None` – In-memory credentials alternative for Sheets.
+- `worksheet_name: str` – Target worksheet (default `"Logs"`).
+- `columns: list[str] | None` – Subset and order of Google Sheets columns (defaults to all 14 metrics fields).
 
 **Methods**
 
-- `append(event: Event) -> None`
+- `append(event: Event) -> None` – Writes immediately to disk or sheets.
 - `read() -> Iterator[Event]`
 - `open()` / `close()` – Manual control outside context manager.
 

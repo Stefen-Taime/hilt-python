@@ -42,10 +42,12 @@ def test_basic_llm_logging(tmp_path: Path) -> None:
     events = _read_events(jsonl_file)
     actions = [event.action for event in events]
     assert actions == ["system", "prompt", "system", "completion", "system"]
+    prompt_event = events[1]
     completion_event = events[3]
     assert completion_event.content.text == "Hi"
     assert completion_event.metrics.tokens["total"] == 30
     assert completion_event.metrics.cost_usd is not None
+    assert completion_event.extensions["reply_to"] == prompt_event.event_id
 
 
 def test_tool_logging(tmp_path: Path) -> None:
@@ -82,3 +84,4 @@ def test_metrics_extraction_optional(tmp_path: Path) -> None:
         if event.action == "completion"
     )
     assert completion_event.metrics is None
+    assert completion_event.extensions["reply_to"] is not None

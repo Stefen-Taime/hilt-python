@@ -14,6 +14,8 @@
 - 📊 **Analytics-ready** exports via CSV and Parquet converters.
 - 🛠 **Rich CLI tooling** for validation, statistics, and conversion pipelines.
 - 🔌 **Integrations** with LangChain callbacks, OpenAI patterns, and Anthropic Claude helper.
+- 🗂 **Flexible storage** via local JSONL files or Google Sheets (customisable columns, extra `sheets`).
+- 🌐 **API-ready** example stack with FastAPI + Uvicorn (extra `api`).
 - ⚙️ **Extensible schema** using Pydantic models and custom extensions.
 
 ## Installation
@@ -25,7 +27,7 @@ pip install hilt
 Optional extras:
 
 ```bash
-pip install "hilt[parquet,langchain]"
+pip install "hilt[parquet,langchain,sheets,api]"
 ```
 
 ## Quickstart
@@ -63,6 +65,25 @@ from hilt.converters.csv import convert_to_csv
 convert_to_csv("logs/demo.hilt.jsonl", "logs/demo.csv")
 ```
 
+Use Google Sheets for collaborative dashboards (requires `pip install "hilt[sheets]"`):
+
+```python
+with Session(
+    backend="sheets",
+    sheet_id="YOUR_SHEET_ID",
+    credentials_path="service-account.json",
+    columns=[
+        "timestamp",
+        "speaker",
+        "message",
+        "tokens_out",
+        "cost_usd",
+        "status_code",
+    ],
+) as session:
+    session.append(event)
+```
+
 ## CLI
 
 ```bash
@@ -76,9 +97,10 @@ Refer to [docs/cli.md](docs/cli.md) for detailed options.
 ## Integrations
 
 - LangChain callback handler: `HILTCallbackHandler`
-- OpenAI helper pattern (see `examples/openai_integration.py`)
+- OpenAI helpers: `log_chat_completion`, `log_chat_streaming`, `log_rag_interaction` (latency, cost, and status metadata included)
 - Anthropic Claude helper: `log_claude_interaction`
 - Google Gemini helper: `log_gemini_interaction`
+- FastAPI example API: `examples/chatbot_api.py` (install with `hilt[api]`)
 
 More details in [docs/integrations.md](docs/integrations.md).
 
