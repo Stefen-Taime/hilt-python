@@ -18,9 +18,6 @@ Example:
 
 Supported Providers:
     - OpenAI: ✅ Available
-    - Anthropic: 🚧 Coming soon
-    - Gemini: 🚧 Coming soon
-    - LangChain: 🚧 Coming soon
 """
 
 from __future__ import annotations

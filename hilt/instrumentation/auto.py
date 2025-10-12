@@ -25,8 +25,8 @@ def instrument(
     """
     🚀 Enable automatic LLM observability with HILT.
     
-    After calling this function once, all LLM API calls (OpenAI, Anthropic, etc.)
-    are automatically logged without any code changes.
+    After calling this function once, all OpenAI chat completion calls are
+    automatically logged without any code changes.
     
     Args:
         backend: Backend type - "local" (JSONL) or "sheets" (Google Sheets)
@@ -42,7 +42,7 @@ def instrument(
             columns: List of columns to display (default: all 14 columns)
         
         providers: List of providers to instrument (default: ["openai"])
-            Options: "openai", "anthropic", "gemini" (coming soon)
+            Options: "openai"
     
     Returns:
         Session object (can be used with context manager if needed)
@@ -144,12 +144,6 @@ def instrument(
     if "openai" in providers:
         instrument_openai()
     
-    # TODO: Add other providers
-    # if "anthropic" in providers:
-    #     instrument_anthropic()
-    # if "gemini" in providers:
-    #     instrument_gemini()
-        
     return session
 
 

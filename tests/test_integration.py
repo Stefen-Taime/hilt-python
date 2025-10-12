@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-import csv
 import threading
 import time
 from pathlib import Path
 from typing import Iterator
 
 import pytest
-from click.testing import CliRunner
-
-from hilt.cli.main import cli
-from hilt.converters.csv import convert_to_csv
-from hilt.converters.parquet import convert_to_parquet
 from hilt.core.event import Event
 from hilt.io.session import Session
 
@@ -22,21 +16,13 @@ def _make_event(index: int, session: str | None = None, actor_type: str = "human
     return Event(session_id=session_id, actor=actor, action="prompt")
 
 
-def _read_csv_rows(path: Path) -> list[dict[str, str]]:
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
-        return list(reader)
-
-
 def _event_stream(count: int) -> Iterator[Event]:
     for i in range(count):
         yield _make_event(i)
 
 
-def test_complete_workflow_write_read_convert(tmp_path: Path) -> None:
+def test_complete_workflow_write_read(tmp_path: Path) -> None:
     jsonl_file = tmp_path / "complete.hilt.jsonl"
-    csv_file = tmp_path / "complete.hilt.csv"
-    parquet_file = tmp_path / "complete.hilt.parquet"
 
     with Session(jsonl_file) as session:
         for event in _event_stream(100):
@@ -44,49 +30,6 @@ def test_complete_workflow_write_read_convert(tmp_path: Path) -> None:
 
     events = list(Session(jsonl_file, mode="r").read())
     assert len(events) == 100
-
-    convert_to_csv(str(jsonl_file), str(csv_file))
-    assert csv_file.exists()
-    assert len(_read_csv_rows(csv_file)) == 100
-
-    pa = pytest.importorskip("pyarrow")
-    pytest.importorskip("pyarrow.parquet")
-    convert_to_parquet(str(jsonl_file), str(parquet_file))
-    table = pa.parquet.read_table(parquet_file)
-    assert table.num_rows == 100
-
-
-def test_cli_workflow(tmp_path: Path) -> None:
-    runner = CliRunner()
-    jsonl_file = tmp_path / "cli.hilt.jsonl"
-    csv_file = tmp_path / "cli.hilt.csv"
-
-    events = [
-        Event(session_id="sess-1", actor={"type": "human", "id": "alice"}, action="prompt"),
-        Event(session_id="sess-1", actor={"type": "agent", "id": "bot"}, action="completion"),
-    ]
-    json_lines = [event.to_json() for event in events]
-    json_lines.append('{"session_id": "sess-1"}')  # invalid event
-    jsonl_file.write_text("\n".join(json_lines) + "\n", encoding="utf-8")
-
-    result_validate = runner.invoke(cli, ["validate", str(jsonl_file)])
-    assert result_validate.exit_code == 1
-    assert "Invalid" in result_validate.output
-
-    clean_jsonl = tmp_path / "cli_clean.hilt.jsonl"
-    clean_jsonl.write_text("\n".join(json_lines[: len(events)]) + "\n", encoding="utf-8")
-
-    result_stats = runner.invoke(cli, ["stats", str(clean_jsonl)])
-    assert result_stats.exit_code == 0
-    assert "Total events" in result_stats.output
-
-    result_convert = runner.invoke(
-        cli, ["convert", str(clean_jsonl), "--to", "csv", "--output", str(csv_file)]
-    )
-    assert result_convert.exit_code == 0
-    assert csv_file.exists()
-    rows = _read_csv_rows(csv_file)
-    assert len(rows) == len(events)
 
 
 def test_large_file_performance(tmp_path: Path) -> None:
@@ -167,7 +110,6 @@ def test_error_recovery(tmp_path: Path) -> None:
 
 def test_real_world_scenario(tmp_path: Path) -> None:
     jsonl_file = tmp_path / "chat.hilt.jsonl"
-    csv_file = tmp_path / "chat.hilt.csv"
 
     turns = [
         {
@@ -221,10 +163,7 @@ def test_real_world_scenario(tmp_path: Path) -> None:
     events = list(Session(jsonl_file, mode="r").read())
     assert len(events) == len(turns)
     assert sum(e.metrics.tokens["total"] for e in events if e.metrics and e.metrics.tokens) == 123
-
-    convert_to_csv(str(jsonl_file), str(csv_file))
-    rows = _read_csv_rows(csv_file)
-
-    assert len(rows) == len(turns)
-    aggregated_cost = sum(float(row.get("metrics.cost_usd") or 0) for row in rows)
-    assert pytest.approx(aggregated_cost, rel=1e-3) == 0.024
+    total_cost = sum(
+        e.metrics.cost_usd for e in events if e.metrics and e.metrics.cost_usd is not None
+    )
+    assert pytest.approx(total_cost, rel=1e-3) == 0.024

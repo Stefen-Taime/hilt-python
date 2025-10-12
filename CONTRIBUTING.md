@@ -28,7 +28,7 @@ Run these commands before submitting a pull request to prevent CI surprises.
 
 ## Submitting a Pull Request
 
-1. Branch from `main` with a descriptive name (e.g., `feature/add-anthropic-instrumentor`).
+1. Branch from `main` with a descriptive name (e.g., `feature/openai-metrics-tweak`).
 2. Implement the change with tests or docs as needed.
 3. Update relevant documentation when behaviour or APIs change.
 4. Re-run the quality checklist.

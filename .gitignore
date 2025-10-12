@@ -49,3 +49,11 @@ Thumbs.db
 # HILT logs (for testing)
 *.hilt.jsonl
 logs/
+
+# ⚠️ CREDENTIALS - NE JAMAIS COMMITER
+credentials.json
+.env
+*.key
+*.pem
+secrets.json
+config/credentials.json

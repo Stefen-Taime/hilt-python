@@ -97,15 +97,9 @@ async def main():
 asyncio.run(main())
 ```
 
-### When will other providers be available?
+### Are other providers supported?
 
-Current status:
-
-- ✅ OpenAI – available now
-- 🚧 Anthropic – in progress
-- 🚧 Google Gemini – planned
-
-Follow the GitHub repo for updates or contribute to speed up support.
+Not yet. Today HILT only instruments the official OpenAI Python SDK. If you want to help add additional providers, open an issue or pull request on GitHub.
 
 ### Can I use HILT in production?
 

@@ -72,8 +72,6 @@ Every event includes unique conversation IDs, prompt/completion links, token usa
 | Provider | Status | Notes |
 |----------|--------|-------|
 | OpenAI | ✅ Available | Instruments `client.chat.completions.create` |
-| Anthropic | 🚧 Coming soon | Same auto-instrumentation pattern |
-| Google Gemini | 🚧 Coming soon | Pending SDK stabilisation |
 
 ## Documentation
 

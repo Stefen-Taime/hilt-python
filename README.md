@@ -141,7 +141,13 @@ See `docs/` for deeper guides on privacy, advanced contexts, and FAQ.
 
 ## Development
 
-Contributions are welcome! Start with [CONTRIBUTING.md](CONTRIBUTING.md).The test suite lives in `tests/`, and linting/type checking is configured via Ruff, Black, and MyPy.
+Contributions are welcome! Start with [CONTRIBUTING.md](CONTRIBUTING.md). The test suite lives in `tests/`, and linting/type checking is configured via Ruff, Black, and MyPy.
+
+## TODO
+
+- Add auto-instrumentation for Anthropic Claude
+- Add auto-instrumentation for Google Gemini
+- Explore LangGraph or similar workflow integrations
 
 ## License
 
