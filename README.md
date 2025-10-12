@@ -69,6 +69,8 @@ instrument(backend="local", filepath="logs/app.jsonl")
 
 ### Google Sheets (real time)
 
+See [Google Sheets setup guide](docs/google_sheets_setup.md) for credential and sheet ID steps.
+
 ```python
 instrument(
     backend="sheets",
@@ -97,39 +99,6 @@ instrument(
 
 Passing an empty list opens the session without patching any providers—useful for manual logging scenarios.
 
-### Session overrides
-
-```python
-from hilt.instrumentation import get_context
-from hilt.io.session import Session
-
-debug_session = Session("logs/debug.jsonl")
-debug_session.open()
-
-with get_context().use_session(debug_session):
-    # Only calls inside this block write to debug.jsonl
-    client.chat.completions.create(...)
-```
-
-### Manual events
-
-```python
-from hilt import Event, Actor, Content
-from hilt.instrumentation import get_context
-
-session = get_context().session
-
-session.append(
-    Event(
-        session_id="conv_custom",
-        actor=Actor(type="system", id="guardrail"),
-        action="feedback",
-        content=Content(text="Response flagged for manual review"),
-        extensions={"score": 0.42},
-    )
-)
-```
-
 ## Troubleshooting highlights
 
 - **Nothing recorded?** Ensure `instrument()` runs before importing the OpenAI client.
@@ -147,7 +116,7 @@ Contributions are welcome! Start with [CONTRIBUTING.md](CONTRIBUTING.md). The te
 
 - Add auto-instrumentation for Anthropic Claude
 - Add auto-instrumentation for Google Gemini
-- Explore LangGraph or similar workflow integrations
+- Add auto-instrumentation for LangGraph
 
 ## License
 

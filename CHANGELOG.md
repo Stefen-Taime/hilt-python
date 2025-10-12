@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [0.1.1] - 2025-10-08
+## [0.1.2] - 2025-10-08
 
 ### Added
 - `hilt.instrument()` / `hilt.uninstrument()` for one-line auto-instrumentation
