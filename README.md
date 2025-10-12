@@ -121,3 +121,8 @@ Contributions are welcome! Start with [CONTRIBUTING.md](CONTRIBUTING.md). The te
 ## License
 
 Released under the [Apache License 2.0](LICENSE).
+## Installation
+
+```bash
+pip install hilt-python
+```
