@@ -1,72 +1,150 @@
 # Installation
 
-## TL;DR
+Get HILT up and running in a couple of minutes.
+
+## Requirements
+
+- Python 3.10 or newer (matches the package metadata)
+- An OpenAI API key if you plan to call the OpenAI SDK
+- A virtual environment (venv/poetry) is recommended
+
+## Install from PyPI
 
 ```bash
 pip install hilt
 ```
 
-## Table of Contents
+This installs the core package, including the OpenAI SDK dependency that the instrumentor patches.
 
-1. [Prerequisites](#prerequisites)
-2. [Install via pip](#install-via-pip)
-3. [Install via Poetry](#install-via-poetry)
-4. [Install from Source](#install-from-source)
-5. [Optional Dependencies](#optional-dependencies)
+## Optional: Google Sheets support
 
-## Prerequisites
-
-- Python ≥ 3.10
-- Recommended: virtual environment (venv, Poetry, or Conda)
-
-## Install via pip
+For real-time dashboards, install the Sheets extra:
 
 ```bash
-python -m pip install --upgrade pip
-pip install hilt
+pip install "hilt[sheets]"
 ```
 
-## Install via Poetry
+Then either set environment variables:
 
 ```bash
-poetry add hilt
+export GOOGLE_SHEET_ID="1nduXlCD47mU2TiCJDgr29_K9wFg_vi1DpvflFsTHM44"
+export GOOGLE_CREDENTIALS_PATH="credentials.json"
 ```
 
-To include optional extras:
+Or pass credentials directly in code:
+
+```python
+from hilt import instrument
+
+instrument(
+    backend="sheets",
+    sheet_id="...",
+    credentials_path="credentials.json",
+)
+```
+
+Steps to prepare the credentials:
+
+1. Create a Google Cloud service account.
+2. Enable the Google Sheets API.
+3. Download the JSON credentials file.
+4. Share your target Google Sheet with the service account email.
+
+## Verify installation
+
+```python
+from hilt import instrument
+
+instrument  # noqa: silences unused warning in quick REPL checks
+print("✅ HILT installed successfully!")
+```
+
+## Set up OpenAI
 
 ```bash
-poetry add "hilt[parquet,langchain,sheets,api]"
+export OPENAI_API_KEY="sk-..."  # macOS/Linux
 ```
 
-## Install from Source
+On Windows PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY="sk-..."
+```
+
+Or inside Python:
+
+```python
+import os
+os.environ["OPENAI_API_KEY"] = "sk-..."
+```
+
+## Install from source
 
 ```bash
 git clone https://github.com/hilt-format/hilt-python.git
 cd hilt-python
-poetry install
+poetry install --with dev
 ```
 
-or with pip:
+Run tests to double-check the environment:
 
 ```bash
-pip install -e .
+poetry run pytest
 ```
 
-## Optional Dependencies
+## Quick test script
 
-HILT ships with extras for ecosystem integrations:
+Create `test_hilt.py`:
 
-| Extra        | Packages                          | Purpose                                  |
-|--------------|-----------------------------------|------------------------------------------|
-| `parquet`    | `pyarrow`                         | Parquet conversion                       |
-| `langchain`  | `langchain`                       | LangChain callback handler               |
-| `sheets`     | `gspread`, `google-auth`          | Google Sheets backend for `Session`      |
-| `api`        | `fastapi`, `uvicorn`, `python-dotenv` | FastAPI chatbot sample API               |
+```python
+"""Quick sanity check for HILT auto-instrumentation."""
 
-Install via:
+import os
+from hilt import instrument
+from openai import OpenAI
+
+if not os.getenv("OPENAI_API_KEY"):
+    raise SystemExit("Set OPENAI_API_KEY before running this script.")
+
+instrument(backend="local", filepath="logs/test.jsonl")
+
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Say 'HILT works!'"}],
+)
+
+print(response.choices[0].message.content)
+print("✅ Check logs/test.jsonl for the recorded events.")
+```
+
+Run it with:
 
 ```bash
-pip install "hilt[parquet,langchain,sheets,api]"
+python test_hilt.py
 ```
 
-Refer to [Integrations](integrations.md) for usage examples.
+## Upgrade or remove
+
+```bash
+pip install --upgrade hilt
+pip install --upgrade "hilt[sheets]"  # if you use the Sheets extra
+pip uninstall hilt                   # to remove the package
+```
+
+## Troubleshooting
+
+**`ImportError: No module named 'hilt'`**  
+Ensure you are inside the correct virtual environment and the package is installed (`pip list | grep hilt`).
+
+**Google Sheets backend not working**  
+Install the Sheets extra (`pip install "hilt[sheets]"`) and confirm `gspread` appears in `pip list`.
+
+**Poetry installation issues**  
+Update Poetry (`pip install --upgrade poetry`), clear the cache (`poetry cache clear . --all`), and retry `poetry install`.
+
+## Next steps
+
+- [Quickstart](quickstart.md) – instrument, call OpenAI, inspect logs
+- [Integrations](integrations.md) – provider-specific behaviour and roadmap
+- [API reference](api.md) – deep dive into sessions and data models

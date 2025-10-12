@@ -1,71 +1,330 @@
 # FAQ
 
-Common questions and troubleshooting tips.
-
-## Table of Contents
-
-1. [General](#general)
-2. [Troubleshooting](#troubleshooting)
-3. [Comparisons](#comparisons)
+Common questions about HILT auto-instrumentation.
 
 ## General
 
-### Why JSONL?
+### Do I need to change my existing OpenAI code?
 
-JSONL (JSON Lines) is human-readable, append-friendly, and plays well with big data tooling. Each HILT event is a single JSON object per line.
+**No.** Just call `instrument()` once at startup and your existing code works unchanged:
 
-### Is HILT schema-free?
+```python
+from hilt import instrument
 
-Events are validated using Pydantic models (`Event`, `Actor`, `Metrics`, etc.), offering both structure and extensibility via `extensions` and `provenance`.
+instrument(backend="local", filepath="logs/app.jsonl")
 
-### How do I rotate logs?
+# Rest of your code stays the same
+from openai import OpenAI
+client = OpenAI()
+response = client.chat.completions.create(...)
+```
 
-Use one JSONL file per day or session. The CLI supports conversion and stats on each shard.
+HILT transparently wraps the OpenAI SDK and leaves response objects untouched.
 
-### Can I control which fields appear in Google Sheets?
+### How do I stop instrumentation?
 
-Yes. When you construct `Session(backend="sheets", ...)`, pass a `columns=[...]` list to choose and order the available fields (e.g., `"timestamp"`, `"message"`, `"tokens_out"`, `"cost_usd"`). Any omitted columns are hidden from the sheet.
+Call `uninstrument()` to restore the original SDK:
+
+```python
+from hilt import uninstrument
+
+uninstrument()
+# Logging is now disabled
+```
+
+This also closes the active session so no events remain buffered.
+
+### Where are logs stored?
+
+**Local backend (default):**
+
+- Newline-delimited JSON (`.jsonl`) files
+- Privacy-first—data never leaves your environment
+- Example path: `logs/app.jsonl`
+
+**Google Sheets backend (optional):**
+
+- Real-time updates to a Google Sheet
+- Ideal for team dashboards and cost monitoring
+- Requires `pip install "hilt[sheets]"`
+
+```python
+# Local
+instrument(backend="local", filepath="logs/app.jsonl")
+
+# Google Sheets
+instrument(backend="sheets", sheet_id="...")
+```
+
+### Can I log custom events?
+
+Yes. Access the active session and append events manually:
+
+```python
+from hilt import Event
+from hilt.instrumentation import get_context
+
+session = get_context().session
+
+session.append(
+    Event(
+        session_id="conv_abc",
+        actor={"type": "tool", "id": "vector-db"},
+        action="retrieval",
+        content={"text": "Retrieved document..."},
+    )
+)
+```
+
+Great for tool calls, human feedback, guardrail results, or custom metrics.
+
+### Does HILT work with async code?
+
+Yes. HILT is thread-safe and compatible with async frameworks.
+
+```python
+import asyncio
+from hilt import instrument
+from openai import AsyncOpenAI
+
+instrument(backend="local", filepath="logs/async.jsonl")
+
+async def main():
+    client = AsyncOpenAI()
+    response = await client.chat.completions.create(...)
+    # ✅ Logged automatically
+
+asyncio.run(main())
+```
+
+### When will other providers be available?
+
+Current status:
+
+- ✅ OpenAI – available now
+- 🚧 Anthropic – in progress
+- 🚧 Google Gemini – planned
+
+Follow the GitHub repo for updates or contribute to speed up support.
+
+### Can I use HILT in production?
+
+Yes. HILT is production-ready:
+
+- ✅ Thread-safe
+- ✅ Minimal overhead
+- ✅ Built-in error handling
+- ✅ No third-party data sharing (local backend)
+
+Production tips:
+
+- Use the local backend for sensitive data
+- Rotate log files daily
+- Monitor disk usage
+- Establish log retention policies
 
 ## Troubleshooting
 
-### `hilt validate` reports invalid JSON
+### Nothing is being logged
 
-Ensure each line is a valid JSON object. Use streaming writers that flush complete lines and avoid manual concatenation errors.
+**1. Check import order**
 
-### Parquet conversion fails with `ImportError`
+```python
+# ✅ Correct
+from hilt import instrument
+instrument(...)
+from openai import OpenAI
 
-Install the optional dependency:
-
-```bash
-pip install "hilt[parquet]"
+# ❌ Incorrect
+from openai import OpenAI
+from hilt import instrument
+instrument(...)  # Too late!
 ```
 
-### Google Sheets backend raises `ImportError`
+**2. Verify the API key**
 
-Install the Sheets extras and provide credentials:
+```bash
+echo $OPENAI_API_KEY
+```
+
+Set it if missing.
+
+**3. Confirm file permissions**
+
+```bash
+ls -la logs/
+```
+
+**4. Verify instrumentation is active**
+
+```python
+from hilt.instrumentation import get_context
+
+context = get_context()
+print(f"Instrumented: {context.is_instrumented}")
+print(f"Session: {context.session}")
+```
+
+### Google Sheets writes fail
+
+1. Install the Sheets extra:
 
 ```bash
 pip install "hilt[sheets]"
+pip list | grep gspread
 ```
 
-Then pass `backend="sheets"` along with `sheet_id` and `credentials_path` when constructing the session.
+2. Share the sheet with the service account email (found in `credentials.json`):
 
-### LangChain callbacks are not logged
+```bash
+cat credentials.json | grep client_email
+```
 
-Install extras (`hilt[langchain]`) and pass the handler in `callbacks=[...]`. Ensure `include_metrics=True` if you expect usage data.
+3. Ensure credentials are configured:
 
-### CLI commands run out of memory on large files
+```python
+import os
 
-The converters stream and should not load entire files. For stats, consider splitting logs per day or using Parquet for analytics.
+print(os.getenv("GOOGLE_SHEET_ID"))
+print(os.getenv("GOOGLE_CREDENTIALS_PATH"))
+```
 
-## Comparisons
+4. Test the credentials manually:
 
-| Feature               | HILT                  | Custom JSON | CSV Only |
-|-----------------------|-----------------------|-------------|----------|
-| Schema validation     | ✅ (Pydantic)         | ❌          | ❌       |
-| Nested data           | ✅                    | ✅          | 🚫       |
-| Extensibility         | ✅ (`extensions`)     | ✅          | 🚫       |
-| Analytics friendly    | ✅ (CSV/Parquet)      | ⚠️ manual   | ✅       |
-| Privacy metadata      | ✅ (`Privacy` fields) | ❌          | ❌       |
+```python
+import gspread
+from google.oauth2.service_account import Credentials
 
-Need more help? Open an issue on GitHub or join the community discussions.
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
+
+creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+client = gspread.authorize(creds)
+sheet = client.open_by_key("YOUR_SHEET_ID")
+print(f"✅ Connected to: {sheet.title}")
+```
+
+### Logs are huge / disk space issues
+
+Rotate logs by date:
+
+```python
+from datetime import datetime
+from hilt import instrument
+
+date_str = datetime.now().strftime("%Y-%m-%d")
+instrument(backend="local", filepath=f"logs/app-{date_str}.jsonl")
+```
+
+Cleanup script:
+
+```python
+from pathlib import Path
+from datetime import datetime, timedelta
+
+def cleanup_old_logs(logs_dir="logs", days=30):
+    cutoff = datetime.now() - timedelta(days=days)
+    for log_file in Path(logs_dir).glob("*.jsonl"):
+        if log_file.stat().st_mtime < cutoff.timestamp():
+            log_file.unlink()
+            print(f"Deleted: {log_file}")
+
+cleanup_old_logs()
+```
+
+### Performance concerns
+
+**Q:** Does HILT slow down my API calls?  
+**A:** Overhead is minimal (~1–2 ms per call) because logging is lightweight and uses append-only writes.
+
+Basic benchmark:
+
+```python
+import time
+from hilt import instrument
+from openai import OpenAI
+
+instrument(backend="local", filepath="logs/bench.jsonl")
+client = OpenAI()
+
+start = time.time()
+for _ in range(100):
+    client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Hi"}],
+    )
+end = time.time()
+
+print(f"Average overhead: {(end - start) / 100 * 1000:.2f} ms per call")
+```
+
+## Best practices
+
+**Log rotation**
+
+```python
+from datetime import datetime
+
+date = datetime.now().strftime("%Y-%m-%d")
+instrument(backend="local", filepath=f"logs/app-{date}.jsonl")
+```
+
+**Privacy**
+
+```python
+import re
+
+def redact_email(text: str) -> str:
+    pattern = r"\b[\w\.-]+@[\w\.-]+\.\w+\b"
+    return re.sub(pattern, "[EMAIL]", text)
+
+user_input = redact_email(user_input)
+```
+
+See the Privacy guide for more ideas.
+
+**Monitoring**
+
+```python
+from hilt import Session
+
+total_cost = 0.0
+error_count = 0
+
+with Session("logs/prod.jsonl", mode="r") as session:
+    for event in session.read():
+        if event.metrics and event.metrics.cost_usd:
+            total_cost += event.metrics.cost_usd
+        status = event.extensions.get("status_code") if event.extensions else None
+        if status and status >= 400:
+            error_count += 1
+
+print(f"Total cost: ${total_cost:.4f}")
+print(f"Errors: {error_count}")
+```
+
+**Production setup**
+
+```python
+import os
+from hilt import instrument
+
+env = os.getenv("ENVIRONMENT", "development")
+
+if env == "production":
+    instrument(
+        backend="sheets",
+        sheet_id=os.getenv("GOOGLE_SHEET_ID"),
+        credentials_path="credentials.json",
+    )
+else:
+    instrument(backend="local", filepath=f"logs/{env}.jsonl")
+```
+
+## Still need help?
+
+- 📖 Browse the rest of the documentation
+- 🐛 Report an issue on GitHub
+- 💬 Join discussions (coming soon)

@@ -1,127 +1,343 @@
 # Integrations
 
-HILT plays nicely with popular AI frameworks and SDKs. This page covers LangChain, OpenAI, Anthropic Claude, and patterns for custom integrations.
+HILT automatically instruments LLM provider SDKs so you can log interactions without changing your application code.
 
-## Table of Contents
+## Supported providers
 
-1. [LangChain](#langchain)
-2. [OpenAI SDK](#openai-sdk)
-3. [Anthropic Claude](#anthropic-claude)
-4. [Google Gemini](#google-gemini)
-5. [REST API Example](#rest-api-example)
-6. [Custom Integrations](#custom-integrations)
+| Provider | Status | Notes |
+|----------|--------|-------|
+| OpenAI | ✅ Available | Instruments `client.chat.completions.create` |
+| Anthropic | 🚧 Coming soon | Will follow the same auto-instrumentation pattern |
+| Google Gemini | 🚧 Coming soon | Pending SDK stabilization |
 
-## LangChain
-
-Use the `HILTCallbackHandler` to automatically log LangChain chains, LLMs, and tools.
+## Quick start
 
 ```python
-from langchain.llms import OpenAI
-from hilt.io.session import Session
-from hilt.integrations.langchain import HILTCallbackHandler
+from hilt import instrument
 
-with Session("logs/langchain.hilt.jsonl") as session:
-    callback = HILTCallbackHandler(session, session_id="demo-chain")
-    llm = OpenAI(callbacks=[callback])
-    result = llm("Explain the HILT format in one sentence.")
+# Enable auto-instrumentation (all available providers by default)
+instrument(backend="local", filepath="logs/app.jsonl")
 ```
 
-The handler emits:
+By default, `instrument()` enables every available provider. Today this means OpenAI; Anthropic and Gemini are on the way.
 
-- `prompt` events for each input
-- `completion` events with tokens/cost (when available)
-- `tool_call` / `tool_result` events
-- `system` events for chain boundaries
-
-Install extras: `pip install "hilt[langchain]"`.
-
-## OpenAI SDK
-
-Use the convenience helpers for chat completions, streaming output, and RAG logging. Each helper now:
-
-- Converts simple session IDs into deterministic conversation UUIDs.
-- Records latency, token usage, and cost (based on current OpenAI pricing).
-- Stores HTTP-like status codes and `reply_to` links for traceability.
-- Emits `system` events on rate limits or API errors.
+### Explicit provider selection
 
 ```python
-from hilt.io.session import Session
-from hilt.integrations.openai import (
-    log_chat_completion,
-    log_chat_streaming,
-    log_rag_interaction,
+instrument(
+    backend="local",
+    filepath="logs/app.jsonl",
+    providers=["openai"],  # Explicit list
+)
+```
+
+## OpenAI
+
+When OpenAI instrumentation is active, HILT automatically:
+
+- ✅ Captures every API call
+  - Wraps `client.chat.completions.create()` transparently
+  - Records streaming and non-streaming responses
+  - Requires zero changes to your OpenAI usage
+- ✅ Tracks conversation threads
+  - Generates deterministic `conversation_id` values
+  - Links completions to prompts via `reply_to`
+- ✅ Records comprehensive metrics
+  - Token usage (prompt, completion, total)
+  - Calculated USD cost (based on current pricing)
+  - Latency in milliseconds
+  - HTTP-style status codes (200, 429, 500, …)
+- ✅ Handles errors gracefully
+  - Emits `system` events on exceptions
+  - Captures rate limiting (429) and auth failures (401)
+
+### What gets logged
+
+Each API call generates two events.
+
+**Prompt event**
+
+```json
+{
+  "event_id": "evt_abc123",
+  "session_id": "conv_a3f7d892",
+  "actor": {"type": "human", "id": "user"},
+  "action": "prompt",
+  "content": {"text": "What is Python?"}
+}
+```
+
+**Completion event**
+
+```json
+{
+  "event_id": "evt_def456",
+  "session_id": "conv_a3f7d892",
+  "actor": {"type": "agent", "id": "openai"},
+  "action": "completion",
+  "content": {"text": "Python is a programming language..."},
+  "metrics": {
+    "tokens": {"prompt": 5, "completion": 87, "total": 92},
+    "cost_usd": 0.000015
+  },
+  "extensions": {
+    "reply_to": "evt_abc123",
+    "model": "gpt-4o-mini",
+    "latency_ms": 842,
+    "status_code": 200
+  }
+}
+```
+
+### Streaming support
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+stream = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Count to 5"}],
+    stream=True,
 )
 
-with Session("logs/openai.hilt.jsonl") as session:
-    log_chat_completion(session, user_message="Translate hello to Spanish")
-    log_chat_streaming(session, user_message="Explain quantum computing briefly")
-
-with Session("logs/rag.hilt.jsonl") as session:
-    log_rag_interaction(
-        session,
-        user_message="What is alpha?",
-        answer="Alpha is…",
-        retrieved_documents=[{"id": "doc-1", "text": "Alpha doc"}],
-    )
+for chunk in stream:
+    print(chunk.choices[0].delta.content, end="")
+# ✅ All chunks logged automatically
+# ✅ Final completion event includes full text + metrics
 ```
 
-- `log_chat_completion` enregistre prompt + réponse + métriques (latence, tokens, coûts, statut).
-- `log_chat_streaming` crée des événements `completion_chunk` pour chaque delta, agrège la réponse finale et conserve les métriques complètes.
-- `log_rag_interaction` relie prompt, documents récupérés (`retrieval`) et réponse finale (`completion`) avec références (`reply_to`), scores et coûts calculés lorsque les tokens sont fournis.
+HILT emits one `completion_chunk` event per delta and a final `completion` event with the aggregated text and metrics.
 
-Voir `examples/openai_integration.py` pour un script complet avec affichage et conversion CSV.
+### Error handling
 
-## Anthropic Claude
+When calls fail, HILT logs `system` events automatically:
 
 ```python
-from anthropic import Anthropic
-from hilt.io.session import Session
-from hilt.integrations.anthropic import log_claude_interaction
-
-client = Anthropic()
-response = client.messages.create(...)
-
-with Session("logs/claude.hilt.jsonl") as session:
-    log_claude_interaction(session, user_message="Hello", response=response)
+try:
+    client.chat.completions.create(...)
+except openai.RateLimitError:
+    # HILT already logged a system event containing:
+    # - error_code: "rate_limit"
+    # - status_code: 429
+    # - latency_ms: time until error
+    raise
 ```
 
-Tokens are extracted from `response.usage`; content blocks are flattened into event text.
+## Backend configuration
 
-## Google Gemini
+### Local JSONL (default)
 
 ```python
-from google import generativeai as genai
-from hilt.io.session import Session
-from hilt.integrations.gemini import log_gemini_interaction
-
-genai.configure(api_key="...")
-model = genai.GenerativeModel("gemini-1.5-pro")
-result = model.generate_content("Summarise the Solar System")
-
-with Session("logs/gemini.hilt.jsonl") as session:
-    log_gemini_interaction(session, user_message="Summarise the Solar System", response=result)
+instrument(backend="local", filepath="logs/app.jsonl")
 ```
 
-The helper pulls text from candidate parts and token counts from `usageMetadata` when available.
+Best for:
 
-## REST API Example
+- Development and production environments
+- Privacy-sensitive workloads
+- Offline analysis
 
-Ship a minimal chatbot API using the FastAPI stack bundled in the `api` extra.
+### Google Sheets (real time)
+
+```python
+instrument(
+    backend="sheets",
+    sheet_id="1nduXlCD47mU2TiCJDgr29_K9wFg_vi1DpvflFsTHM44",
+    credentials_path="credentials.json",
+    worksheet_name="LLM Logs",
+    columns=[
+        "timestamp",
+        "conversation_id",
+        "reply_to",
+        "message",
+        "cost_usd",
+        "status_code",
+    ],
+)
+```
+
+Ideal for:
+
+- Team dashboards
+- Stakeholder visibility
+- Real-time cost monitoring
+
+Features:
+
+- Automatically creates the worksheet if missing
+- Enforces headers and column order
+- Streams events without buffering
+
+Available columns:
+
+- `timestamp`, `conversation_id`, `event_id`, `reply_to`, `status_code`
+- `session`, `speaker`, `action`, `message`
+- `tokens_in`, `tokens_out`, `cost_usd`, `latency_ms`
+- `model`, `relevance_score`
+
+Credentials setup:
+
+```python
+# Option 1: File path
+instrument(
+    backend="sheets",
+    sheet_id="...",
+    credentials_path="credentials.json",
+)
+
+# Option 2: Dict (e.g., env var)
+import json, os
+
+credentials = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
+instrument(
+    backend="sheets",
+    sheet_id="...",
+    credentials_json=credentials,
+)
+```
+
+## Advanced usage
+
+### Context-specific sessions
+
+```python
+from hilt import instrument
+from hilt.instrumentation import get_context
+from hilt.io.session import Session
+
+instrument(backend="sheets", sheet_id="prod-sheet-id")
+
+with Session("logs/debug.jsonl") as debug_session:
+    with get_context().use_session(debug_session):
+        # API calls here write to debug.jsonl instead of Sheets
+        pass
+```
+
+Use cases:
+
+- Separate logs for synthetic tests
+- Debug workflows
+- Per-customer routing or compliance
+
+### Disable instrumentation
+
+```python
+from hilt import uninstrument
+
+uninstrument()      # Stop logging all providers
+instrument(...)     # Re-enable later
+```
+
+### Check instrumentation status
+
+```python
+from hilt.instrumentation import get_context
+
+context = get_context()
+print(f"Instrumented: {context.is_instrumented}")
+print(f"Session: {context.session}")
+```
+
+## Coming soon
+
+### Anthropic (Claude)
+
+```python
+# Planned
+instrument(providers=["openai", "anthropic"])
+```
+
+### Google Gemini
+
+```python
+# Planned
+instrument(providers=["openai", "gemini"])
+```
+
+## Migration from the manual API
+
+Previously, you had to log interactions manually:
+
+```python
+from hilt import Session
+from hilt.integrations.openai import log_chat_completion
+
+with Session("logs/chat.jsonl") as session:
+    log_chat_completion(session, user_message="Hello", model="gpt-4o-mini")
+```
+
+Now just instrument once:
+
+```python
+from hilt import instrument
+from openai import OpenAI
+
+instrument(backend="local", filepath="logs/chat.jsonl")
+
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+# ✅ Logged automatically
+```
+
+Benefits:
+
+- ✅ Less code to maintain
+- ✅ No risk of forgetting to log
+- ✅ Works with existing OpenAI usage
+
+## Troubleshooting
+
+**Nothing is being logged**
+
+Call `instrument()` before importing the provider SDK:
+
+```python
+# ✅ Correct
+from hilt import instrument
+instrument(...)
+
+from openai import OpenAI
+
+# ❌ Incorrect
+from openai import OpenAI
+from hilt import instrument
+instrument(...)  # Too late
+```
+
+**Instrumentation not working**
+
+```python
+from hilt.instrumentation import get_context
+
+context = get_context()
+print(context.is_instrumented)
+print(context.session)
+```
+
+**Missing providers**
+
+Ensure the provider SDK is installed:
 
 ```bash
-pip install "hilt[api]"
-python examples/chatbot_api.py
+pip install openai          # OpenAI
+pip install anthropic       # Anthropic (when available)
+pip install google-generativeai  # Gemini (when available)
 ```
 
-The example stores conversations in `logs/chatbot.hilt.jsonl`, exposes a `/chat` endpoint, and streams metrics that work with the Google Sheets backend.
+## Contributing
 
-## Custom Integrations
+Want to add support for another provider? See `CONTRIBUTING.md`. High-priority areas:
 
-When writing your own adapters:
+- Anthropic Messages instrumentation
+- Google Gemini instrumentation
+- Additional LLM providers (Cohere, AI21, etc.)
 
-1. Capture request/response payloads.
-2. Construct `Event` instances that include metrics and metadata.
-3. Use `Session` to append events.
-4. Add provenance (`event.provenance`) for audit trails (e.g., model IDs, request IDs).
+## Need help?
 
-For inspiration, inspect `hilt/integrations/langchain.py` and `hilt/integrations/anthropic.py`.
+- Browse the rest of the docs for advanced usage and privacy guidance.
+- Report issues or feature requests on GitHub. 🚀

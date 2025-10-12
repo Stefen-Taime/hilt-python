@@ -1,15 +1,8 @@
-# Contributing Guide
+# Contributing
 
-We welcome contributions! This document covers environment setup, testing, code style, and the pull request process.
+We welcome improvements to HILT—whether it's expanding instrumentation coverage, refining documentation, or fixing bugs. This guide focuses on day-to-day contributor tasks.
 
-## Table of Contents
-
-1. [Project Setup](#project-setup)
-2. [Running Tests](#running-tests)
-3. [Code Style](#code-style)
-4. [Pull Request Process](#pull-request-process)
-
-## Project Setup
+## Environment setup
 
 ```bash
 git clone https://github.com/hilt-format/hilt-python.git
@@ -17,40 +10,32 @@ cd hilt-python
 poetry install --with dev
 ```
 
-Activate the poetry shell (optional):
+Enter the Poetry shell if you prefer an activated virtualenv:
 
 ```bash
 poetry shell
 ```
 
-## Running Tests
+## Run the checks
 
-- Unit tests: `poetry run pytest`
-- Single file: `poetry run pytest tests/test_session.py`
-- Coverage HTML: `poetry run pytest --cov=hilt`
+- Tests: `poetry run pytest`
+- Lint: `poetry run ruff check .`
+- Format: `poetry run black .`
+- Types: `poetry run mypy hilt`
 
-Integration tests requiring extras:
+Run at least the tests before every push; run the full set when touching shared modules or instrumentation internals.
 
-```bash
-poetry install -E parquet -E langchain
-poetry run pytest tests/test_integration.py
-```
+## Working on documentation
 
-## Code Style
+- Markdown lives in `docs/` and the project root (e.g., `README.md`).
+- Keep examples consistent with the latest auto-instrumentation API (`instrument`, `uninstrument`, `Session`).
+- Use fenced code blocks with language identifiers (` ```python `) for syntax highlighting.
 
-- Formatting: `poetry run black .`
-- Linting: `poetry run ruff check .`
-- Type checking: `poetry run mypy .`
+## Pull request checklist
 
-Please ensure no lint/type regressions before opening a PR.
+- Branch from `main` using a descriptive name.
+- Include tests or updated docs when behaviours change.
+- List verification commands in the PR description.
+- Update `CHANGELOG.md` when user-visible features are added or modified.
 
-## Pull Request Process
-
-1. Branch from `main` (e.g., `feature/langchain-metrics`).
-2. Implement changes with tests/docs as needed.
-3. Run the full test suite and linters.
-4. Update CHANGELOG or docs when relevant.
-5. Submit the PR with a clear summary and checklist of verification steps.
-6. Address review feedback promptly.
-
-Thank you for helping grow the HILT ecosystem! 🚀
+Thanks for helping build reliable LLM observability!
