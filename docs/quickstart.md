@@ -5,7 +5,7 @@ Get started with HILT.
 ## 1. Install HILT
 
 ```bash
-pip install hilt
+pip install hilt-python
 ```
 
 ## 2. Set your OpenAI API key
@@ -109,7 +109,7 @@ with Session(backend="local", filepath="logs/chat.jsonl", mode="r") as session:
 Want a live dashboard?
 
 ```bash
-pip install "hilt[sheets]"
+pip install "hilt-python[sheets]"
 ```
 
 ```python
@@ -217,8 +217,8 @@ from openai import OpenAI  # Import after instrument()
 **“Module not found” errors**
 
 ```bash
-pip install hilt
-pip install "hilt[sheets]"  # For Google Sheets support
+pip install hilt-python
+pip install "hilt-python[sheets]"  # For Google Sheets support
 ```
 
 Need more help? Check the docs or open an issue on GitHub. Parfait !

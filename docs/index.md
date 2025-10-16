@@ -164,12 +164,12 @@ print(f"Total tokens: {total_tokens:,}")
 
 ## Community
 
-- 📖 [GitHub](https://github.com/hilt-format/hilt-python)
-- 🐛 [Report issues](https://github.com/hilt-format/hilt-python/issues)
+- 📖 [GitHub](https://github.com/Stefen-Taime/hilt-python)
+- 🐛 [Report issues](https://github.com/Stefen-Taime/hilt-python/issues)
 - 💬 Discussions coming soon
 
 ## License
 
-MIT License – see `LICENSE` for details.
+Apache License 2.0 – see `LICENSE` for details.
 
 Ready to start? Head over to [Installation](installation.md). 🚀

@@ -5,7 +5,7 @@ We welcome improvements to HILT—whether it's expanding instrumentation coverag
 ## Environment setup
 
 ```bash
-git clone https://github.com/hilt-format/hilt-python.git
+git clone https://github.com/Stefen-Taime/hilt-python.git
 cd hilt-python
 poetry install --with dev
 ```

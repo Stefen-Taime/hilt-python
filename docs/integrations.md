@@ -31,7 +31,7 @@ Streaming responses (`stream=True`) are also supported—HILT records each chunk
 Choose the storage backend that fits your workflow:
 
 - **Local JSONL (default)** – privacy-first, append-only logs that stay on disk.
-- **Google Sheets** – optional real-time dashboard (`pip install "hilt[sheets]"`) with configurable columns for support or QA teams.
+- **Google Sheets** – optional real-time dashboard (`pip install "hilt-python[sheets]"`) with configurable columns for support or QA teams.
 
 Switching backends does not require code changes beyond the original call to `instrument()`.
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hilt-python"
-version = "0.2.7"
+version = "0.2.8"
 description = "HILT: Human-IA Log Trace - Privacy-first logging format for AI interactions"
 authors = ["HILT Team <info@mcsedition.com>"]
 license = "Apache-2.0"

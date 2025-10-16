@@ -11,7 +11,7 @@ Get HILT up and running in a couple of minutes.
 ## Install from PyPI
 
 ```bash
-pip install hilt
+pip install hilt-python
 ```
 
 This installs the core package, including the OpenAI SDK dependency that the instrumentor patches.
@@ -21,7 +21,7 @@ This installs the core package, including the OpenAI SDK dependency that the ins
 For real-time dashboards, install the Sheets extra:
 
 ```bash
-pip install "hilt[sheets]"
+pip install "hilt-python[sheets]"
 ```
 
 Then either set environment variables:
@@ -81,7 +81,7 @@ os.environ["OPENAI_API_KEY"] = "sk-..."
 ## Install from source
 
 ```bash
-git clone https://github.com/hilt-format/hilt-python.git
+git clone https://github.com/Stefen-Taime/hilt-python.git
 cd hilt-python
 poetry install --with dev
 ```
@@ -127,18 +127,18 @@ python test_hilt.py
 ## Upgrade or remove
 
 ```bash
-pip install --upgrade hilt
-pip install --upgrade "hilt[sheets]"  # if you use the Sheets extra
-pip uninstall hilt                   # to remove the package
+pip install --upgrade hilt-python
+pip install --upgrade "hilt-python[sheets]"  # if you use the Sheets extra
+pip uninstall hilt-python                 # to remove the package
 ```
 
 ## Troubleshooting
 
 **`ImportError: No module named 'hilt'`**  
-Ensure you are inside the correct virtual environment and the package is installed (`pip list | grep hilt`).
+Ensure you are inside the correct virtual environment and the package is installed (`pip list | grep hilt-python`).
 
 **Google Sheets backend not working**  
-Install the Sheets extra (`pip install "hilt[sheets]"`) and confirm `gspread` appears in `pip list`.
+Install the Sheets extra (`pip install "hilt-python[sheets]"`) and confirm `gspread` appears in `pip list`.
 
 **Poetry installation issues**  
 Update Poetry (`pip install --upgrade poetry`), clear the cache (`poetry cache clear . --all`), and retry `poetry install`.

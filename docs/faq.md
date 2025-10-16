@@ -46,7 +46,7 @@ This also closes the active session so no events remain buffered.
 
 - Real-time updates to a Google Sheet
 - Ideal for team dashboards and cost monitoring
-- Requires `pip install "hilt[sheets]"`
+- Requires `pip install "hilt-python[sheets]"`
 
 ```python
 # Local
@@ -164,7 +164,7 @@ print(f"Session: {context.session}")
 1. Install the Sheets extra:
 
 ```bash
-pip install "hilt[sheets]"
+pip install "hilt-python[sheets]"
 pip list | grep gspread
 ```
 
