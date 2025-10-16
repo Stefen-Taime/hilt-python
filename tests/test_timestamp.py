@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 
 from hilt.utils.timestamp import now_iso8601, parse_timestamp
+
+UTC = getattr(datetime, "UTC", timezone.utc)
 
 
 def test_now_iso8601_format() -> None:
@@ -27,4 +29,3 @@ def test_parse_timestamp_round_trip() -> None:
 def test_parse_timestamp_rejects_empty() -> None:
     with pytest.raises(ValueError):
         parse_timestamp("")
-
