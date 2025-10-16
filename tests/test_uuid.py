@@ -17,4 +17,3 @@ def test_generate_event_id_unique() -> None:
     second = generate_event_id()
 
     assert first != second
-

@@ -25,8 +25,10 @@ def mock_openai():
     - Provide a fake client headers dict to carry OpenAI-Project
     - .create() returns a fake response with choices[0].message.content and usage
     """
-    with patch('hilt.instrumentation.openai_instrumentor.OPENAI_AVAILABLE', True), \
-         patch('hilt.instrumentation.openai_instrumentor.chat_completions_module') as mock_module:
+    with (
+        patch("hilt.instrumentation.openai_instrumentor.OPENAI_AVAILABLE", True),
+        patch("hilt.instrumentation.openai_instrumentor.chat_completions_module") as mock_module,
+    ):
 
         class _FakeMessage:
             # l'instrumentor utilise _unwrap_message_content(message)
@@ -128,6 +130,7 @@ class TestOpenAIInstrumentation:
 
         # Utilise le module mocké que l'instrumentor a patché
         from hilt.instrumentation.openai_instrumentor import chat_completions_module
+
         completions = chat_completions_module.Completions()
 
         # Appel instrumenté : l’instrumentor doit intercepter et écrire 2 events
@@ -162,6 +165,7 @@ class TestOpenAIInstrumentation:
         """
         uninstrument()
         from hilt.instrumentation.openai_instrumentor import chat_completions_module, _instrumentor
+
         assert not _instrumentor._is_instrumented
 
         # Appel direct de la méthode d'origine mockée
@@ -177,6 +181,7 @@ class TestContextManager:
 
     def test_get_context_singleton(self):
         from hilt.instrumentation.context import get_context
+
         context1 = get_context()
         context2 = get_context()
         assert context1 is context2
@@ -205,14 +210,14 @@ class TestProviderSelection:
 
     def test_default_provider(self, temp_log_file: Path):
         uninstrument()
-        with patch('hilt.instrumentation.auto.instrument_openai') as mock_inst:
+        with patch("hilt.instrumentation.auto.instrument_openai") as mock_inst:
             instrument(backend="local", filepath=str(temp_log_file))
             mock_inst.assert_called_once()
         uninstrument()
 
     def test_custom_providers(self, temp_log_file: Path):
         uninstrument()
-        with patch('hilt.instrumentation.auto.instrument_openai') as mock_openai:
+        with patch("hilt.instrumentation.auto.instrument_openai") as mock_openai:
             instrument(backend="local", filepath=str(temp_log_file), providers=["openai"])
             mock_openai.assert_called_once()
         uninstrument()
@@ -231,13 +236,13 @@ class TestThreadSafety:
         results = {}
 
         def thread_func():
-            results['session'] = context.session
+            results["session"] = context.session
 
         thread = threading.Thread(target=thread_func)
         thread.start()
         thread.join()
 
-        assert results['session'] == global_session
+        assert results["session"] == global_session
         uninstrument()
 
 
@@ -251,11 +256,11 @@ class TestEndToEnd:
         instrument(backend="local", filepath=str(temp_log_file))
 
         from openai import OpenAI
+
         client = OpenAI()
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": "Say 'test' only"}]
+            model="gpt-4o-mini", messages=[{"role": "user", "content": "Say 'test' only"}]
         )
         assert response.choices[0].message.content
 

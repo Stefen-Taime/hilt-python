@@ -21,7 +21,7 @@ def test_event_creation_full():
         action="completion",
         content=Content(text="Hello!"),
     )
-    
+
     assert event.actor.type == "agent"
     assert event.actor.id == "gpt-4"
     assert event.content is not None
@@ -32,9 +32,7 @@ def test_event_invalid_action():
     """Test that invalid action raises ValueError."""
     with pytest.raises(ValueError, match="Invalid action"):
         Event(
-            session_id="sess_test",
-            actor=Actor(type="human", id="alice"),
-            action="invalid_action"
+            session_id="sess_test", actor=Actor(type="human", id="alice"), action="invalid_action"
         )
 
 
@@ -50,7 +48,7 @@ def test_event_serialization(sample_event):
     json_str = sample_event.to_json()
     assert isinstance(json_str, str)
     assert "sess_test" in json_str
-    
+
     # From JSON
     event2 = Event.from_json(json_str)
     assert event2.event_id == sample_event.event_id
@@ -61,7 +59,7 @@ def test_event_serialization(sample_event):
 def test_event_to_dict(sample_event):
     """Test dictionary conversion."""
     event_dict = sample_event.to_dict()
-    
+
     assert isinstance(event_dict, dict)
     assert event_dict["session_id"] == "sess_test"
     assert event_dict["actor"]["type"] == "human"

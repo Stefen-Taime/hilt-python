@@ -86,8 +86,9 @@ def build_parser() -> argparse.ArgumentParser:
     # hilt demo
     p_demo = sub.add_parser("demo", help="Write a demo event via HILT")
     p_demo.add_argument("--backend", choices=["local", "sheets"], default="local")
-    p_demo.add_argument("--file", default="logs/cli_demo.jsonl",
-                        help="Path to log file (local backend)")
+    p_demo.add_argument(
+        "--file", default="logs/cli_demo.jsonl", help="Path to log file (local backend)"
+    )
     p_demo.add_argument("--sheet-id", help="Google Sheet ID (sheets backend)")
     p_demo.add_argument("--worksheet", default="Logs", help="Sheet tab name (sheets)")
     p_demo.add_argument("--credentials", help="Path to credentials.json (sheets)")

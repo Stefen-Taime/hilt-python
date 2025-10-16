@@ -60,18 +60,8 @@ EVENT_SCHEMA: Dict[str, Any] = {
         "session_id": {"type": "string"},
         "actor": ACTOR_SCHEMA,
         "action": {"type": "string"},
-        "content": {
-            "oneOf": [
-                CONTENT_SCHEMA,
-                {"type": "null"}
-            ]
-        },
-        "metrics": {
-            "oneOf": [
-                METRICS_SCHEMA,
-                {"type": "null"}
-            ]
-        },
+        "content": {"oneOf": [CONTENT_SCHEMA, {"type": "null"}]},
+        "metrics": {"oneOf": [METRICS_SCHEMA, {"type": "null"}]},
         "provenance": {"type": ["object", "null"]},
         "extensions": {"type": ["object", "null"]},
     },
@@ -83,18 +73,19 @@ EVENT_SCHEMA: Dict[str, Any] = {
 def validate_event(event_dict: Dict[str, Any]) -> bool:
     """
     Validate an event dictionary against the schema.
-    
+
     Args:
         event_dict: Event as dictionary
-        
+
     Returns:
         True if valid
-        
+
     Raises:
         ValidationError: If event is invalid
     """
     try:
         import jsonschema
+
         jsonschema.validate(instance=event_dict, schema=EVENT_SCHEMA)
         return True
     except ImportError:
@@ -102,6 +93,7 @@ def validate_event(event_dict: Dict[str, Any]) -> bool:
         return True
     except jsonschema.ValidationError as e:
         from hilt.core.exceptions import ValidationError
+
         raise ValidationError(f"Event validation failed: {e.message}")
 
 

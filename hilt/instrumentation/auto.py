@@ -25,41 +25,41 @@ def instrument(
 ) -> Session:
     """
     🚀 Enable automatic LLM observability with HILT.
-    
+
     After calling this function once, all OpenAI chat completion calls are
     automatically logged without any code changes.
-    
+
     Args:
         backend: Backend type - "local" (JSONL) or "sheets" (Google Sheets)
-        
+
         Local backend:
             filepath: Path to .jsonl file (e.g., "logs/chat.jsonl")
-        
+
         Google Sheets backend:
             sheet_id: Google Sheet ID from URL
             credentials_path: Path to service account credentials JSON
             credentials_json: Credentials as dict (alternative to file)
             worksheet_name: Worksheet name (default: "Logs")
-        
+
         columns: List of columns to log (WORKS FOR BOTH BACKENDS!)
-            Available: timestamp, conversation_id, event_id, reply_to, 
-            status_code, session, speaker, action, message, tokens_in, 
+            Available: timestamp, conversation_id, event_id, reply_to,
+            status_code, session, speaker, action, message, tokens_in,
             tokens_out, cost_usd, latency_ms, model, relevance_score
-            
+
             Example - exclude message content:
                 columns=['timestamp', 'speaker', 'action', 'cost_usd', 'model']
-        
+
         providers: List of providers to instrument (default: ["openai"])
             Options: "openai"
-    
+
     Returns:
         Session object (can be used with context manager if needed)
-    
+
     Examples:
         >>> # Option 1: Local JSONL with full events
         >>> from hilt import instrument
         >>> instrument(backend="local", filepath="logs/chat.jsonl")
-        
+
         >>> # Option 2: Local JSONL WITHOUT message content (privacy!)
         >>> instrument(
         ...     backend="local",
@@ -67,7 +67,7 @@ def instrument(
         ...     columns=['timestamp', 'speaker', 'action', 'cost_usd', 'model']
         ... )
         >>> # ✅ Messages NOT logged to file!
-        
+
         >>> # Option 3: Google Sheets with custom columns
         >>> instrument(
         ...     backend="sheets",
@@ -75,14 +75,14 @@ def instrument(
         ...     credentials_path="credentials.json",
         ...     columns=['timestamp', 'message', 'cost_usd', 'status_code']
         ... )
-    
+
     Notes:
         - Call once at app startup
         - Thread-safe (works with FastAPI, Flask, etc.)
         - Zero performance overhead when not logging
         - Use uninstrument() to disable
     """
-    
+
     # Validate backend
     if backend is None:
         if filepath:
@@ -94,31 +94,33 @@ def instrument(
                 "Must specify either backend='local' with filepath "
                 "or backend='sheets' with sheet_id"
             )
-    
+
     # Default providers
     if providers is None:
         providers = ["openai"]
-    
+
     # Create session based on backend
     if backend == "local":
         if filepath is None:
             filepath = "logs/hilt.jsonl"
-        
+
         session = Session(
             backend="local",
             filepath=filepath,
             mode="a",
             create_dirs=True,
-            columns=columns  # ← FIX: Maintenant passé au Session!
+            columns=columns,  # ← FIX: Maintenant passé au Session!
         )
         print(f"✅ HILT instrumentation enabled")
         print(f"   Backend: Local JSONL")
         print(f"   File: {filepath}")
         if columns:
-            print(f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})")
+            print(
+                f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})"
+            )
         else:
             print(f"   Columns: All (full events)")
-    
+
     elif backend == "sheets":
         session = Session(
             backend="sheets",
@@ -126,61 +128,63 @@ def instrument(
             credentials_path=credentials_path,
             credentials_json=credentials_json,
             worksheet_name=worksheet_name,
-            columns=columns
+            columns=columns,
         )
         print(f"✅ HILT instrumentation enabled")
         print(f"   Backend: Google Sheets")
         print(f"   Sheet ID: {sheet_id}")
         print(f"   Worksheet: {worksheet_name}")
         if columns:
-            print(f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})")
-    
+            print(
+                f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})"
+            )
+
     else:
         raise ValueError(f"Invalid backend: {backend}. Must be 'local' or 'sheets'")
-    
+
     # Open session (it will stay open for the app lifetime)
     session.open()
-    
+
     # Set global session in context
     context = get_context()
     context.set_global_session(session)
-    
+
     # Instrument providers
     print(f"   Providers: {', '.join(providers)}")
-    
+
     if "openai" in providers:
         instrument_openai()
-    
+
     return session
 
 
 def uninstrument():
     """
     Disable HILT instrumentation.
-    
+
     Removes all monkey-patching and closes the session.
-    
+
     Example:
         >>> from hilt import uninstrument
         >>> uninstrument()
         >>> # LLM calls are no longer logged
     """
     context = get_context()
-    
+
     # Close session if exists
     if context.session:
         try:
             context.session.close()
         except:
             pass
-    
+
     # Clear context
     context.clear()
-    
+
     # Uninstrument providers
     uninstrument_openai()
-    
+
     print("🔓 HILT instrumentation disabled")
 
 
-__all__ = ['instrument', 'uninstrument']
+__all__ = ["instrument", "uninstrument"]

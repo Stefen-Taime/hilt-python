@@ -17,6 +17,7 @@ from hilt.integrations.openai import (
 try:
     from openai import OpenAI, OpenAIError, RateLimitError  # type: ignore
     from openai.resources.chat import completions as chat_completions_module  # type: ignore
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False

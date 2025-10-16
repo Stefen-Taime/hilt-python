@@ -9,11 +9,7 @@ from hilt import Event, Actor
 @pytest.fixture
 def sample_event():
     """Create a basic test event."""
-    return Event(
-        session_id="sess_test",
-        actor=Actor(type="human", id="alice"),
-        action="prompt"
-    )
+    return Event(session_id="sess_test", actor=Actor(type="human", id="alice"), action="prompt")
 
 
 @pytest.fixture

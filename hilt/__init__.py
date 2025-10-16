@@ -5,9 +5,9 @@ Zero-friction LLM observability for production applications.
 
 Quick Start:
     >>> from hilt import instrument
-    >>> 
+    >>>
     >>> instrument(backend="local", filepath="logs/chat.jsonl")
-    >>> 
+    >>>
     >>> from openai import OpenAI
     >>> client = OpenAI()
     >>> response = client.chat.completions.create(

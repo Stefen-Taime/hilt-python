@@ -6,10 +6,10 @@ enabling zero-code-change observability.
 
 Example:
     >>> from hilt import instrument
-    >>> 
+    >>>
     >>> # Enable for OpenAI
     >>> instrument(backend="local", filepath="logs/chat.jsonl")
-    >>> 
+    >>>
     >>> # Your existing code works unchanged
     >>> from openai import OpenAI
     >>> client = OpenAI()

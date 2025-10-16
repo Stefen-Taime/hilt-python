@@ -11,14 +11,15 @@ from hilt.io.session import Session
 try:
     from openai import OpenAIError, RateLimitError
 except ImportError:
+
     class OpenAIError(Exception):
         pass
-    
+
     class RateLimitError(OpenAIError):
         pass
 
 
-HILT_NAMESPACE = uuid.UUID('a8f7e6d5-c4b3-4a21-9f0e-1d2c3b4a5e6f')
+HILT_NAMESPACE = uuid.UUID("a8f7e6d5-c4b3-4a21-9f0e-1d2c3b4a5e6f")
 
 MODEL_PRICING = {
     "gpt-4o": {"input": 2.50, "output": 10.00},
@@ -45,24 +46,24 @@ def _generate_conversation_uuid(session_id: str) -> str:
 
 def _extract_status_code(error: Exception) -> int:
     """Extract HTTP status code from error."""
-    if hasattr(error, 'status_code'):
+    if hasattr(error, "status_code"):
         return error.status_code
-    
+
     if isinstance(error, RateLimitError):
         return 429
-    
+
     error_str = str(error).lower()
-    if '429' in error_str or 'rate limit' in error_str:
+    if "429" in error_str or "rate limit" in error_str:
         return 429
-    elif '401' in error_str:
+    elif "401" in error_str:
         return 401
-    elif '403' in error_str:
+    elif "403" in error_str:
         return 403
-    elif '400' in error_str:
+    elif "400" in error_str:
         return 400
-    elif '503' in error_str:
+    elif "503" in error_str:
         return 503
-    
+
     return 500
 
 
@@ -107,10 +108,10 @@ def _log_system_event(
         "error_code": error_code,
         "status_code": status_code,
     }
-    
+
     if latency_ms is not None:
         extensions["latency_ms"] = latency_ms
-    
+
     session.append(
         Event(
             session_id=session_id,

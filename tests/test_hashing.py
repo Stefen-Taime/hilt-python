@@ -24,4 +24,3 @@ def test_verify_hash_failure() -> None:
 def test_verify_hash_invalid_prefix() -> None:
     with pytest.raises(ValueError):
         verify_hash("content", "md5:deadbeef")
-
