@@ -52,6 +52,7 @@ Thumbs.db
 *.hilt.jsonl
 logs/
 
+api/
 # ⚠️ CREDENTIALS - NE JAMAIS COMMITER
 credentials.json
 .env
