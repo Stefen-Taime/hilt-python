@@ -427,9 +427,7 @@ class Session:
         if self.backend == "local" and self._file_handle is None:
             if self.filepath is None:
                 raise HILTError("Session filepath is not set for local backend.")
-            self._file_handle = cast(
-                TextIO, open(self.filepath, self.mode, encoding=self.encoding)
-            )
+            self._file_handle = cast(TextIO, open(self.filepath, self.mode, encoding=self.encoding))
 
     def append(self, event: Event) -> None:
         """Append an event to the backend."""
