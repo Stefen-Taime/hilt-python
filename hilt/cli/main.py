@@ -1,6 +1,8 @@
 import argparse
 import json
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import cast
 
 from hilt.__version__ import __version__
 from hilt.core.actor import Actor
@@ -42,12 +44,12 @@ def _tail_file(path: Path, n: int) -> int:
     return 0
 
 
-def cmd_version(_args) -> int:
+def cmd_version(_args: argparse.Namespace) -> int:
     print(__version__)
     return 0
 
 
-def cmd_demo(args) -> int:
+def cmd_demo(args: argparse.Namespace) -> int:
     # Start a session (local by default)
     if args.backend == "local":
         instrument(backend="local", filepath=args.file, providers=["openai"])
@@ -71,7 +73,7 @@ def cmd_demo(args) -> int:
         uninstrument()
 
 
-def cmd_tail(args) -> int:
+def cmd_tail(args: argparse.Namespace) -> int:
     return _tail_file(Path(args.file), args.n)
 
 
@@ -103,11 +105,12 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv=None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     func = getattr(args, "func", None)
     if func is None:
         parser.print_help()
         return 0
-    return func(args)
+    handler = cast(Callable[[argparse.Namespace], int], func)
+    return handler(args)

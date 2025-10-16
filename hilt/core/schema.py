@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+import importlib
+from collections.abc import Callable
+from typing import Any, cast
 
 # JSON Schema for Actor
 ACTOR_SCHEMA: dict[str, Any] = {
@@ -83,17 +85,29 @@ def validate_event(event_dict: dict[str, Any]) -> bool:
         ValidationError: If event is invalid
     """
     try:
-        import jsonschema
-
-        jsonschema.validate(instance=event_dict, schema=EVENT_SCHEMA)
-        return True
+        jsonschema_module = importlib.import_module("jsonschema")
     except ImportError:
         # jsonschema not installed, skip validation
         return True
-    except jsonschema.ValidationError as e:
+
+    validate_fn = cast(
+        Callable[..., Any],
+        getattr(jsonschema_module, "validate", None),
+    )
+    validation_error_cls = cast(
+        type[Exception], getattr(jsonschema_module, "ValidationError", Exception)
+    )
+
+    if validate_fn is None:
+        return True
+
+    try:
+        validate_fn(event_dict, EVENT_SCHEMA)
+        return True
+    except validation_error_cls as exc:
         from hilt.core.exceptions import ValidationError
 
-        raise ValidationError(f"Event validation failed: {e.message}")
+        raise ValidationError(f"Event validation failed: {exc}") from exc
 
 
 __all__ = [

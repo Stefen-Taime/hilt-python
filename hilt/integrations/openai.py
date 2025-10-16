@@ -2,22 +2,14 @@
 
 from __future__ import annotations
 
+import importlib
 import uuid
+from functools import lru_cache
 from typing import Any
 
-from hilt.core.event import Event
+from hilt.core.actor import Actor
+from hilt.core.event import Content, Event
 from hilt.io.session import Session
-
-try:
-    from openai import OpenAIError, RateLimitError
-except ImportError:
-
-    class OpenAIError(Exception):
-        pass
-
-    class RateLimitError(OpenAIError):
-        pass
-
 
 HILT_NAMESPACE = uuid.UUID("a8f7e6d5-c4b3-4a21-9f0e-1d2c3b4a5e6f")
 
@@ -46,10 +38,12 @@ def _generate_conversation_uuid(session_id: str) -> str:
 
 def _extract_status_code(error: Exception) -> int:
     """Extract HTTP status code from error."""
-    if hasattr(error, "status_code"):
-        return error.status_code
+    status_attr = getattr(error, "status_code", None)
+    if isinstance(status_attr, int):
+        return status_attr
 
-    if isinstance(error, RateLimitError):
+    rate_limit_cls = _get_rate_limit_error()
+    if rate_limit_cls is not None and isinstance(error, rate_limit_cls):
         return 429
 
     error_str = str(error).lower()
@@ -92,6 +86,20 @@ def _usage_value(usage: Any, key: str) -> int:
     return 0
 
 
+@lru_cache(maxsize=1)
+def _get_rate_limit_error() -> type[Exception] | None:
+    """Return OpenAI's RateLimitError class if available."""
+    try:
+        openai_module = importlib.import_module("openai")
+    except ImportError:
+        return None
+
+    rate_limit_error = getattr(openai_module, "RateLimitError", None)
+    if isinstance(rate_limit_error, type) and issubclass(rate_limit_error, Exception):
+        return rate_limit_error
+    return None
+
+
 def _log_system_event(
     session: Session,
     *,
@@ -99,11 +107,11 @@ def _log_system_event(
     reply_to: str,
     error_code: str,
     message: str,
-    latency_ms: int = None,
+    latency_ms: int | None = None,
     status_code: int = 500,
 ) -> None:
     """Log system error event."""
-    extensions = {
+    extensions: dict[str, Any] = {
         "reply_to": reply_to,
         "error_code": error_code,
         "status_code": status_code,
@@ -115,9 +123,9 @@ def _log_system_event(
     session.append(
         Event(
             session_id=session_id,
-            actor={"type": "system", "id": "openai"},
+            actor=Actor(type="system", id="openai"),
             action="system",
-            content={"text": message},
+            content=Content(text=message),
             extensions=extensions,
         )
     )

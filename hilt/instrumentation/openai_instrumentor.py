@@ -1,8 +1,15 @@
 """Auto-instrumentation for OpenAI SDK."""
 
-import time
+from __future__ import annotations
 
-from hilt.core.event import Event, Metrics
+import importlib
+import time
+from collections.abc import Callable
+from types import ModuleType
+from typing import Any, cast
+
+from hilt.core.actor import Actor
+from hilt.core.event import Content, Event, Metrics
 from hilt.instrumentation.context import get_context
 from hilt.integrations.openai import (
     _calculate_cost,
@@ -13,23 +20,23 @@ from hilt.integrations.openai import (
     _usage_value,
 )
 
+chat_completions_module: ModuleType | None
 try:  # pragma: no cover - runtime import guard
-    from openai.resources.chat import completions as chat_completions_module  # type: ignore
-
-    OPENAI_AVAILABLE = True
+    chat_completions_module = importlib.import_module("openai.resources.chat.completions")
 except ImportError:  # pragma: no cover - optional dependency
-    OPENAI_AVAILABLE = False
     chat_completions_module = None
+
+OPENAI_AVAILABLE = chat_completions_module is not None
 
 
 class OpenAIInstrumentor:
     """Instrumentor for OpenAI SDK."""
 
-    def __init__(self):
-        self._original_create = None
+    def __init__(self) -> None:
+        self._original_create: Callable[..., Any] | None = None
         self._is_instrumented = False
 
-    def instrument(self):
+    def instrument(self) -> None:
         """Apply monkey-patching to OpenAI SDK."""
         if not OPENAI_AVAILABLE:
             raise ImportError("OpenAI SDK not available")
@@ -37,36 +44,46 @@ class OpenAIInstrumentor:
         if self._is_instrumented:
             return
 
+        if chat_completions_module is None:
+            raise ImportError("OpenAI chat completions module unavailable")
+
+        completions_module = cast(Any, chat_completions_module)
+
         # Conserve la méthode d'origine
-        self._original_create = chat_completions_module.Completions.create
+        original = getattr(completions_module.Completions, "create")
+        self._original_create = cast(Callable[..., Any], original)
 
         # Wrapper qui préserve 'self' du resource
-        def instrumented_wrapper(completions_self, *args, **kwargs):
+        def instrumented_wrapper(completions_self: Any, *args: Any, **kwargs: Any) -> Any:
             return self._instrumented_create(completions_self, *args, **kwargs)
 
-        chat_completions_module.Completions.create = instrumented_wrapper
+        setattr(completions_module.Completions, "create", instrumented_wrapper)
 
         self._is_instrumented = True
         print("✅ OpenAI SDK instrumented - all calls will be logged to HILT")
 
-    def uninstrument(self):
+    def uninstrument(self) -> None:
         """Remove monkey-patching."""
         if not self._is_instrumented:
             return
 
-        if self._original_create:
-            chat_completions_module.Completions.create = self._original_create
+        if self._original_create and chat_completions_module is not None:
+            completions_module = cast(Any, chat_completions_module)
+            setattr(completions_module.Completions, "create", self._original_create)
 
         self._is_instrumented = False
 
-    def _instrumented_create(self, completions_self, *args, **kwargs):
+    def _instrumented_create(self, completions_self: Any, *args: Any, **kwargs: Any) -> Any:
         """Instrumented version of chat.completions.create()."""
         context = get_context()
         session = context.session
 
         # Si pas de session HILT, on passe à l'original
         if session is None:
-            return self._original_create(completions_self, *args, **kwargs)
+            original = self._original_create
+            if original is None:
+                raise RuntimeError("OpenAIInstrumentor is not initialized")
+            return original(completions_self, *args, **kwargs)
 
         model = kwargs.get("model", "gpt-4o-mini")
         messages = kwargs.get("messages", [])
@@ -85,9 +102,9 @@ class OpenAIInstrumentor:
         # Event prompt (humain)
         prompt_event = Event(
             session_id=session_id,
-            actor={"type": "human", "id": "user"},
+            actor=Actor(type="human", id="user"),
             action="prompt",
-            content={"text": user_message},
+            content=Content(text=user_message),
         )
         session.append(prompt_event)
 
@@ -95,7 +112,10 @@ class OpenAIInstrumentor:
 
         try:
             # Appel OpenAI réel
-            response = self._original_create(completions_self, *args, **kwargs)
+            original = self._original_create
+            if original is None:
+                raise RuntimeError("OpenAIInstrumentor is not initialized")
+            response = original(completions_self, *args, **kwargs)
 
             latency_ms = int((time.time() - start_time) * 1000)
 
@@ -129,9 +149,9 @@ class OpenAIInstrumentor:
             session.append(
                 Event(
                     session_id=session_id,
-                    actor={"type": "agent", "id": "openai"},
+                    actor=Actor(type="agent", id="openai"),
                     action="completion",
-                    content={"text": assistant_message},
+                    content=Content(text=assistant_message),
                     metrics=metrics,
                     extensions=extensions,
                 )
@@ -157,11 +177,11 @@ class OpenAIInstrumentor:
 _instrumentor = OpenAIInstrumentor()
 
 
-def instrument_openai():
+def instrument_openai() -> None:
     _instrumentor.instrument()
 
 
-def uninstrument_openai():
+def uninstrument_openai() -> None:
     _instrumentor.uninstrument()
 
 

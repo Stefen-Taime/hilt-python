@@ -1,6 +1,10 @@
 """Auto-instrumentation for HILT - Zero friction LLM observability."""
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from hilt.instrumentation.context import get_context
 from hilt.instrumentation.openai_instrumentor import instrument_openai, uninstrument_openai
@@ -15,12 +19,12 @@ def instrument(
     # Google Sheets backend
     sheet_id: str | None = None,
     credentials_path: str | None = None,
-    credentials_json: dict | None = None,
+    credentials_json: dict[str, Any] | None = None,
     worksheet_name: str = "Logs",
     # Column filtering - NOW WORKS FOR BOTH BACKENDS!
     columns: list[str] | None = None,
     # Providers to instrument
-    providers: list[str] | None = None,
+    providers: Sequence[str] | None = None,
 ) -> Session:
     """
     🚀 Enable automatic LLM observability with HILT.
@@ -96,7 +100,9 @@ def instrument(
 
     # Default providers
     if providers is None:
-        providers = ["openai"]
+        provider_list: list[str] = ["openai"]
+    else:
+        provider_list = list(providers)
 
     # Create session based on backend
     if backend == "local":
@@ -147,15 +153,15 @@ def instrument(
     context.set_global_session(session)
 
     # Instrument providers
-    print(f"   Providers: {', '.join(providers)}")
+    print(f"   Providers: {', '.join(provider_list)}")
 
-    if "openai" in providers:
+    if "openai" in provider_list:
         instrument_openai()
 
     return session
 
 
-def uninstrument():
+def uninstrument() -> None:
     """
     Disable HILT instrumentation.
 
@@ -169,7 +175,7 @@ def uninstrument():
     context = get_context()
 
     # Close session if exists
-    if context.session:
+    if context.session is not None:
         try:
             context.session.close()
         except Exception:
