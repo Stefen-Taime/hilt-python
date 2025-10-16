@@ -55,6 +55,37 @@ After the single `instrument()` call:
 - Prompts and completions are recorded as separate events
 - Latency, tokens, cost, and status codes are populated automatically
 - Conversation IDs remain stable so you can trace every exchange end to end
+- Pick the columns you need for privacy or dashboards (see below)
+
+## Column selection
+
+`instrument(..., columns=[...])` works for **both** JSONL and Google Sheets backends. If you omit the argument, JSONL writes the full event payload while Sheets defaults to every column listed here.
+
+| Column            | Description                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `timestamp`       | ISO timestamp of the event (UTC)                                |
+| `conversation_id` | Stable thread identifier (`conv_xxx`)                           |
+| `event_id`        | Unique event UUID (useful for reply linking)                    |
+| `reply_to`        | Event ID this message responds to                               |
+| `status_code`     | HTTP-like status from providers (e.g., 200, 429)                |
+| `session`         | Human-readable session alias (first characters of the ID)       |
+| `speaker`         | `human` / `agent` plus identifier                               |
+| `action`          | Event type (`prompt`, `completion`, `system`, …)                |
+| `message`         | Normalised single-line content (truncated to 500 chars)         |
+| `tokens_in`       | Prompt tokens (if provider reports usage)                       |
+| `tokens_out`      | Completion tokens (if provider reports usage)                   |
+| `cost_usd`        | Monetised cost for the call (six decimal precision)             |
+| `latency_ms`      | Wall-clock latency from request start to response               |
+| `model`           | Provider/model label returned by the SDK                        |
+| `relevance_score` | Generic score slot (e.g., retrieval relevance)                  |
+
+```python
+instrument(
+    backend="local",
+    filepath="logs/redacted.jsonl",
+    columns=["timestamp", "speaker", "action", "tokens_out", "cost_usd"],
+)
+```
 
 ## Storage options
 

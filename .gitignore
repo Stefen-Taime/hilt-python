@@ -60,3 +60,4 @@ credentials.json
 *.pem
 secrets.json
 config/credentials.json
+credentials.json
