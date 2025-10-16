@@ -4,12 +4,13 @@ from pathlib import Path
 from typing import Iterator, Optional, Any, Dict, List, Union
 import os
 import re
+import json
 
 from hilt.core.event import Event
 from hilt.core.exceptions import HILTError
 
 
-# All available columns for Google Sheets
+# All available columns for Google Sheets and local filtering
 ALL_COLUMNS = [
     'timestamp',
     'conversation_id',
@@ -25,8 +26,32 @@ ALL_COLUMNS = [
     'cost_usd',
     'latency_ms',
     'model',
-    'relevance_score'
+    'relevance_score',
 ]
+
+
+def _format_cost_number(value: Optional[float]) -> Optional[str]:
+    """Format cost with six decimals (dot separator)."""
+    if value is None:
+        return None
+    return f"{value:.6f}"
+
+
+def _format_cost_display(value: Optional[float]) -> Optional[str]:
+    """Format cost as localized string with currency (e.g., 0,000065 USD)."""
+    if value is None:
+        return None
+    return _format_cost_number(value).replace(".", ",") + " USD"
+
+
+def _col_to_a1(col_index_1based: int) -> str:
+    """Convert 1-based column index to A1 notation (A, B, ..., Z, AA, AB, ...)."""
+    letters = []
+    n = col_index_1based
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        letters.append(chr(65 + rem))
+    return "".join(reversed(letters))
 
 
 class Session:
@@ -40,31 +65,7 @@ class Session:
     Attributes:
         backend: 'local' or 'sheets'
         filepath: Path to JSONL file (for local backend)
-        columns: List of columns to display in Google Sheets (default: all)
-        
-    Example (Local backend - shorthand):
-        >>> with Session("logs/app.hilt.jsonl") as session:
-        ...     session.append(Event(...))
-        
-    Example (Local backend - explicit):
-        >>> with Session(backend="local", filepath="logs/app.hilt.jsonl") as session:
-        ...     session.append(Event(...))
-        
-    Example (Google Sheets backend - all columns):
-        >>> with Session(
-        ...     backend="sheets",
-        ...     sheet_id="YOUR_SHEET_ID",
-        ...     credentials_path="credentials.json"
-        ... ) as session:
-        ...     session.append(Event(...))
-    
-    Example (Google Sheets backend - custom columns):
-        >>> with Session(
-        ...     backend="sheets",
-        ...     sheet_id="YOUR_SHEET_ID",
-        ...     columns=['timestamp', 'message', 'cost_usd', 'status_code']
-        ... ) as session:
-        ...     session.append(Event(...))
+        columns: List of columns to display (for both backends)
     """
 
     def __init__(
@@ -82,6 +83,7 @@ class Session:
         credentials_path: Optional[str] = None,
         credentials_json: Optional[Dict] = None,
         worksheet_name: str = "Logs",
+        # Column filtering (now available for both backends)
         columns: Optional[List[str]] = None,
     ):
         """Initialize Session with local or Google Sheets backend."""
@@ -109,9 +111,9 @@ class Session:
         
         self.backend = resolved_backend
         
-        # Set columns (default to all columns for sheets, None for local)
-        if self.backend == "sheets":
-            self.columns = columns if columns is not None else ALL_COLUMNS.copy()
+        # Set and validate columns for both backends
+        if columns is not None:
+            self.columns = columns
             # Validate columns
             invalid_cols = [col for col in self.columns if col not in ALL_COLUMNS]
             if invalid_cols:
@@ -120,7 +122,11 @@ class Session:
                     f"Available columns: {ALL_COLUMNS}"
                 )
         else:
-            self.columns = None
+            # Default to all columns for sheets, None for local (no filtering)
+            if self.backend == "sheets":
+                self.columns = ALL_COLUMNS.copy()
+            else:
+                self.columns = None
         
         # Initialize based on backend
         if self.backend == "local":
@@ -247,7 +253,8 @@ class Session:
                 self.worksheet.update('A1', [headers])
                 print(f"   ✅ Headers added to Google Sheets")
             elif not all_values[0] or all_values[0] != headers:
-                range_name = f"A1:{chr(65 + len(headers) - 1)}1"
+                end_col = _col_to_a1(len(headers))
+                range_name = f"A1:{end_col}1"
                 self.worksheet.update(range_name, [headers])
                 print(f"   ✅ Headers updated in Google Sheets")
             else:
@@ -255,11 +262,12 @@ class Session:
             
             # Optional: Format headers (bold + background)
             try:
-                self.worksheet.format(f'A1:{chr(65 + len(headers) - 1)}1', {
+                end_col = _col_to_a1(len(headers))
+                self.worksheet.format(f'A1:{end_col}1', {
                     "textFormat": {"bold": True},
                     "backgroundColor": {"red": 0.9, "green": 0.9, "blue": 0.9}
                 })
-            except:
+            except Exception:
                 pass
                 
         except Exception as e:
@@ -292,16 +300,127 @@ class Session:
             self._append_to_sheets(event)
     
     def _append_to_file(self, event: Event) -> None:
-        """Append event to local file."""
+        """Append event to local file with optional column filtering."""
         if self._file_handle is None:
             raise HILTError("Session not opened. Use context manager or call open().")
 
         try:
-            json_line = event.to_json()
+            if self.columns is None:
+                # No filtering - write full event as JSON with formatted cost display
+                data = event.to_dict()
+                metrics = data.get("metrics")
+                if isinstance(metrics, dict):
+                    raw_cost = metrics.get("cost_usd")
+                    formatted = _format_cost_number(raw_cost) if isinstance(raw_cost, (int, float)) else None
+                    display = _format_cost_display(raw_cost) if isinstance(raw_cost, (int, float)) else None
+                    if formatted is not None:
+                        metrics["cost_usd"] = formatted
+                    if display:
+                        metrics["cost_usd_display"] = display
+                json_line = json.dumps(data, ensure_ascii=False)
+            else:
+                # Filter event data to include only specified columns
+                filtered_data = self._event_to_filtered_dict(event)
+                json_line = json.dumps(filtered_data, ensure_ascii=False)
+            
             self._file_handle.write(json_line + "\n")
             self._file_handle.flush()
         except Exception as e:
             raise HILTError(f"Failed to write event: {e}") from e
+    
+    def _event_to_filtered_dict(self, event: Event) -> dict:
+        """Convert Event to filtered dictionary with only selected columns."""
+        
+        # Extract basic fields
+        actor_type = event.actor.type
+        actor_id = event.actor.id
+        speaker = f"{actor_type}: {actor_id}"
+        
+        # Format timestamp
+        if hasattr(event.timestamp, 'strftime'):
+            timestamp_str = event.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            timestamp_str = str(event.timestamp)
+        
+        # Get conversation_id
+        conversation_id = event.session_id
+        
+        # Get event_id
+        event_id = event.event_id
+        
+        # Get reply_to from extensions
+        reply_to = ""
+        if event.extensions:
+            reply_to = event.extensions.get('reply_to', '')
+        
+        # Get status_code from extensions
+        status_code = ""
+        if event.extensions:
+            status_code = event.extensions.get('status_code', '')
+        
+        # Get session (short display)
+        if conversation_id.startswith("conv_"):
+            session = f"Conv.{conversation_id[5:13]}"
+        elif conversation_id.startswith("rag_chat_"):
+            session = conversation_id.replace("rag_chat_", "Conv.")
+        else:
+            session = conversation_id[:12]
+        
+        # Get message text
+        message = event.content.text if event.content else ""
+        message = message.replace('\n', ' ')
+        message = re.sub(r'\s+', ' ', message).strip()
+        if len(message) > 500:
+            message = message[:497] + "..."
+        
+        # Extract metrics
+        tokens_in = ""
+        tokens_out = ""
+        cost_usd = ""
+
+        if event.metrics:
+            if hasattr(event.metrics, 'tokens') and event.metrics.tokens:
+                tokens_dict = event.metrics.tokens
+                if isinstance(tokens_dict, dict):
+                    tokens_in = tokens_dict.get('prompt', '')
+                    tokens_out = tokens_dict.get('completion', '')
+
+            if hasattr(event.metrics, 'cost_usd') and event.metrics.cost_usd is not None:
+                formatted = _format_cost_number(event.metrics.cost_usd)
+                if formatted is not None:
+                    cost_usd = formatted
+
+        # Extract extensions
+        latency_ms = ""
+        model = ""
+        relevance_score = ""
+
+        if event.extensions:
+            latency_ms = event.extensions.get('latency_ms', '')
+            model = event.extensions.get('model', '')
+            relevance_score = event.extensions.get('score', '') or event.extensions.get('relevance_score', '')
+        
+        # Map all possible column values
+        all_values = {
+            'timestamp': timestamp_str,
+            'conversation_id': conversation_id,
+            'event_id': event_id,
+            'reply_to': reply_to,
+            'status_code': status_code,
+            'session': session,
+            'speaker': speaker,
+            'action': event.action,
+            'message': message,
+            'tokens_in': tokens_in,
+            'tokens_out': tokens_out,
+            'cost_usd': cost_usd,
+            'latency_ms': latency_ms,
+            'model': model,
+            'relevance_score': relevance_score,
+        }
+        
+        # Return only selected columns
+        return {col: all_values.get(col, '') for col in self.columns}
     
     def _append_to_sheets(self, event: Event) -> None:
         """
@@ -365,7 +484,7 @@ class Session:
         tokens_in = ""
         tokens_out = ""
         cost_usd = ""
-        
+
         if event.metrics:
             if hasattr(event.metrics, 'tokens') and event.metrics.tokens:
                 tokens_dict = event.metrics.tokens
@@ -374,19 +493,19 @@ class Session:
                     tokens_out = tokens_dict.get('completion', '')
             
             if hasattr(event.metrics, 'cost_usd') and event.metrics.cost_usd is not None:
-                cost_usd = round(event.metrics.cost_usd, 6)
-        
+                formatted = _format_cost_number(event.metrics.cost_usd)
+                if formatted is not None:
+                    cost_usd = formatted
+
         # Extract extensions
         latency_ms = ""
         model = ""
         relevance_score = ""
-        
+
         if event.extensions:
             latency_ms = event.extensions.get('latency_ms', '')
             model = event.extensions.get('model', '')
-            relevance_score = event.extensions.get('score', '')
-            if not relevance_score:
-                relevance_score = event.extensions.get('relevance_score', '')
+            relevance_score = event.extensions.get('score', '') or event.extensions.get('relevance_score', '')
         
         # Map all possible column values
         all_values = {
@@ -404,7 +523,7 @@ class Session:
             'cost_usd': cost_usd,
             'latency_ms': latency_ms,
             'model': model,
-            'relevance_score': relevance_score
+            'relevance_score': relevance_score,
         }
         
         # Return only selected columns in the order specified by self.columns
@@ -429,10 +548,54 @@ class Session:
                     continue
 
                 try:
-                    event = Event.from_json(line)
+                    if self.columns is None:
+                        # Full event format
+                        event = Event.from_json(line)
+                    else:
+                        # Filtered format - reconstruct minimal event
+                        data = json.loads(line)
+                        event = self._filtered_dict_to_event(data)
                     yield event
                 except Exception as e:
                     raise HILTError(f"Invalid event at line {line_num}: {e}") from e
+    
+    def _filtered_dict_to_event(self, data: dict) -> Event:
+        """Reconstruct Event from filtered dictionary."""
+        from hilt.core.actor import Actor
+        from hilt.core.event import Content
+        
+        # Parse speaker if available
+        speaker_str = data.get('speaker', 'unknown: unknown')
+        parts = speaker_str.split(':', 1)
+        actor_type = parts[0].strip() if len(parts) > 1 else 'unknown'
+        actor_id = parts[1].strip() if len(parts) > 1 else speaker_str
+        
+        # Create minimal Event
+        event = Event(
+            session_id=data.get('conversation_id', 'unknown'),
+            actor=Actor(type=actor_type, id=actor_id),
+            action=data.get('action', 'unknown'),
+            content=Content(text=data.get('message', '')),
+            timestamp=data.get('timestamp', '')
+        )
+        
+        # Add available extensions
+        extensions = {}
+        if 'reply_to' in data and data['reply_to']:
+            extensions['reply_to'] = data['reply_to']
+        if 'status_code' in data and data['status_code']:
+            extensions['status_code'] = data['status_code']
+        if 'latency_ms' in data and data['latency_ms']:
+            extensions['latency_ms'] = data['latency_ms']
+        if 'model' in data and data['model']:
+            extensions['model'] = data['model']
+        if 'relevance_score' in data and data['relevance_score']:
+            extensions['relevance_score'] = data['relevance_score']
+        
+        if extensions:
+            event.extensions = extensions
+        
+        return event
     
     def _read_from_sheets(self) -> Iterator[Event]:
         """Read events from Google Sheets."""
@@ -446,17 +609,28 @@ class Session:
                 actor_type = parts[0].strip() if len(parts) > 1 else 'unknown'
                 actor_id = parts[1].strip() if len(parts) > 1 else speaker_str
                 
-                # Create Event
+                # Create Event (prefer conversation_id if present)
                 from hilt.core.actor import Actor
                 from hilt.core.event import Content
-                
+
+                session_id = record.get('conversation_id') or record.get('session', 'unknown')
                 event = Event(
-                    session_id=record.get('session', 'unknown'),
+                    session_id=session_id,
                     actor=Actor(type=actor_type, id=actor_id),
                     action=record.get('action', 'unknown'),
                     content=Content(text=record.get('message', '')),
                     timestamp=record.get('timestamp', '')
                 )
+
+                # Reinstate extensions
+                ex = {}
+                if record.get('reply_to'):        ex['reply_to'] = record['reply_to']
+                if record.get('status_code'):     ex['status_code'] = record['status_code']
+                if record.get('latency_ms'):      ex['latency_ms']  = record['latency_ms']
+                if record.get('model'):           ex['model']       = record['model']
+                if record.get('relevance_score'): ex['relevance_score'] = record['relevance_score']
+                if ex:
+                    event.extensions = ex
                 
                 yield event
         except Exception as e:

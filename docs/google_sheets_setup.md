@@ -22,9 +22,10 @@ Follow these steps to enable the Sheets backend for HILT logging.
 
 ## 3. Share your sheet with the service account
 
-1. Open the Google Sheet you want to use for logging.
-2. Click **Share** and invite the service account email (it looks like `your-service-account@your-project.iam.gserviceaccount.com`).
-3. Grant at least **Editor** access so HILT can append rows.
+1. Open the downloaded `credentials.json` file and copy the value under `client_email`.
+2. Open the Google Sheet you want to use for logging.
+3. Click **Share**, paste the `client_email` into the people picker (Add people/share field), and invite that service account.
+4. Grant at least **Editor** access so HILT can append rows.
 
 ## 4. Retrieve the Sheet ID
 

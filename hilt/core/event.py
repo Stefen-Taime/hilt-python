@@ -12,6 +12,17 @@ from pydantic import BaseModel, Field, field_validator
 from hilt.core.actor import Actor
 from hilt.utils.timestamp import get_utc_timestamp
 
+ALLOWED_ACTIONS = {
+    "prompt",
+    "completion",
+    "completion_chunk",
+    "retrieval",
+    "tool_call",
+    "tool_result",
+    "system",
+    "feedback",
+}
+
 
 class Content(BaseModel):
     """Content of an event (text, images, etc.)."""
@@ -42,6 +53,7 @@ class Event(BaseModel):
     Represents a single interaction in a conversation.
     """
     
+    hilt_version: str = Field(default="1.0.0")
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=get_utc_timestamp)
     session_id: str
@@ -59,7 +71,14 @@ class Event(BaseModel):
         if isinstance(v, dict):
             return Actor(**v)
         return v
-    
+
+    @field_validator('action')
+    @classmethod
+    def validate_action(cls, v: str) -> str:
+        if v not in ALLOWED_ACTIONS:
+            raise ValueError(f"Invalid action '{v}'. Allowed actions: {sorted(ALLOWED_ACTIONS)}")
+        return v
+
     @field_validator('content', mode='before')
     @classmethod
     def validate_content(cls, v):

@@ -1,14 +1,14 @@
 [tool.poetry]
 name = "hilt-python"
-version = "0.1.0"
+version = "0.2.6"
 description = "HILT: Human-IA Log Trace - Privacy-first logging format for AI interactions"
 authors = ["HILT Team <info@mcsedition.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://hilt-format.org"
 repository = "https://github.com/hilt-format/hilt-python"
-packages = [{include = "hilt"}]  # <-- AJOUTEZ CETTE LIGNE
 keywords = ["ai", "logging", "llm", "privacy", "gdpr", "openai"]
+packages = [{ include = "hilt" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -18,9 +18,15 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/hilt-format/hilt-python/issues"
+"Documentation" = "https://hilt-format.org"
+
 [tool.poetry.dependencies]
+# ^3.10 means >=3.10,<4.0, so Python 3.13 is fine.
 python = "^3.10"
 pydantic = "^2.0"
 openai = "^1.0.0"
@@ -34,8 +40,11 @@ python-dotenv = { version = "^1.0.0", optional = true }
 sheets = ["gspread", "google-auth"]
 api = ["fastapi", "uvicorn", "python-dotenv"]
 
+[tool.poetry.scripts]
+hilt = "hilt.cli.main:main"
+
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.4"
+pytest = "^8.0"
 pytest-cov = "^4.1"
 black = "^23.0"
 ruff = "^0.1"
@@ -62,3 +71,6 @@ warn_unused_configs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=hilt --cov-report=html --cov-report=term"
+markers = [
+    "integration: marks tests that require external services or longer runtime"
+]

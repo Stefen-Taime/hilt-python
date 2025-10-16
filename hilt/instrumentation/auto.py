@@ -18,6 +18,7 @@ def instrument(
     credentials_path: Optional[str] = None,
     credentials_json: Optional[Dict] = None,
     worksheet_name: str = "Logs",
+    # Column filtering - NOW WORKS FOR BOTH BACKENDS!
     columns: Optional[List[str]] = None,
     # Providers to instrument
     providers: Optional[List[str]] = None,
@@ -39,7 +40,14 @@ def instrument(
             credentials_path: Path to service account credentials JSON
             credentials_json: Credentials as dict (alternative to file)
             worksheet_name: Worksheet name (default: "Logs")
-            columns: List of columns to display (default: all 14 columns)
+        
+        columns: List of columns to log (WORKS FOR BOTH BACKENDS!)
+            Available: timestamp, conversation_id, event_id, reply_to, 
+            status_code, session, speaker, action, message, tokens_in, 
+            tokens_out, cost_usd, latency_ms, model, relevance_score
+            
+            Example - exclude message content:
+                columns=['timestamp', 'speaker', 'action', 'cost_usd', 'model']
         
         providers: List of providers to instrument (default: ["openai"])
             Options: "openai"
@@ -48,31 +56,23 @@ def instrument(
         Session object (can be used with context manager if needed)
     
     Examples:
-        >>> # Option 1: Local JSONL file
+        >>> # Option 1: Local JSONL with full events
         >>> from hilt import instrument
         >>> instrument(backend="local", filepath="logs/chat.jsonl")
-        >>> 
-        >>> # Your existing code works unchanged!
-        >>> from openai import OpenAI
-        >>> client = OpenAI()
-        >>> response = client.chat.completions.create(
-        ...     model="gpt-4o-mini",
-        ...     messages=[{"role": "user", "content": "Hello!"}]
-        ... )
-        >>> # ✅ Automatically logged to logs/chat.jsonl
         
-        >>> # Option 2: Google Sheets (real-time collaboration)
+        >>> # Option 2: Local JSONL WITHOUT message content (privacy!)
+        >>> instrument(
+        ...     backend="local",
+        ...     filepath="logs/chat.jsonl",
+        ...     columns=['timestamp', 'speaker', 'action', 'cost_usd', 'model']
+        ... )
+        >>> # ✅ Messages NOT logged to file!
+        
+        >>> # Option 3: Google Sheets with custom columns
         >>> instrument(
         ...     backend="sheets",
         ...     sheet_id="1abc-xyz",
-        ...     credentials_path="credentials.json"
-        ... )
-        >>> # ✅ All LLM calls logged to Google Sheets in real-time
-        
-        >>> # Option 3: Custom columns in Sheets
-        >>> instrument(
-        ...     backend="sheets",
-        ...     sheet_id="1abc-xyz",
+        ...     credentials_path="credentials.json",
         ...     columns=['timestamp', 'message', 'cost_usd', 'status_code']
         ... )
     
@@ -108,11 +108,16 @@ def instrument(
             backend="local",
             filepath=filepath,
             mode="a",
-            create_dirs=True
+            create_dirs=True,
+            columns=columns  # ← FIX: Maintenant passé au Session!
         )
         print(f"✅ HILT instrumentation enabled")
         print(f"   Backend: Local JSONL")
         print(f"   File: {filepath}")
+        if columns:
+            print(f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})")
+        else:
+            print(f"   Columns: All (full events)")
     
     elif backend == "sheets":
         session = Session(
@@ -127,6 +132,8 @@ def instrument(
         print(f"   Backend: Google Sheets")
         print(f"   Sheet ID: {sheet_id}")
         print(f"   Worksheet: {worksheet_name}")
+        if columns:
+            print(f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})")
     
     else:
         raise ValueError(f"Invalid backend: {backend}. Must be 'local' or 'sheets'")

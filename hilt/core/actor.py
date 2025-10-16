@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+ALLOWED_ACTOR_TYPES = {"human", "agent", "tool", "system"}
+
+
 @dataclass
 class Actor:
     """
@@ -33,6 +36,12 @@ class Actor:
     id: str
     name: Optional[str] = None
     metadata: Optional[dict] = None
+
+    def __post_init__(self) -> None:
+        if self.type not in ALLOWED_ACTOR_TYPES:
+            raise ValueError(
+                f"Invalid actor type '{self.type}'. Allowed types: {sorted(ALLOWED_ACTOR_TYPES)}"
+            )
     
     def to_dict(self) -> dict:
         """Convert Actor to dictionary."""
