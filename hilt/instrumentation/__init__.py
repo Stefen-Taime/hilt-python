@@ -23,7 +23,7 @@ Supported Providers:
 from __future__ import annotations
 
 from .auto import instrument, uninstrument
-from .context import get_context, InstrumentationContext
+from .context import InstrumentationContext, get_context
 
 # Provider-specific instrumentors (for advanced use)
 from .openai_instrumentor import (

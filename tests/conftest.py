@@ -1,9 +1,9 @@
 """Pytest configuration and fixtures."""
 
-import pytest
-from pathlib import Path
 
-from hilt import Event, Actor
+import pytest
+
+from hilt import Actor, Event
 
 
 @pytest.fixture

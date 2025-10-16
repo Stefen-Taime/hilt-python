@@ -1,14 +1,14 @@
 """Session manager for reading/writing HILT events."""
 
-from pathlib import Path
-from typing import Iterator, Optional, Any, Dict, List, Union
+import json
 import os
 import re
-import json
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 from hilt.core.event import Event
 from hilt.core.exceptions import HILTError
-
 
 # All available columns for Google Sheets and local filtering
 ALL_COLUMNS = [
@@ -30,14 +30,14 @@ ALL_COLUMNS = [
 ]
 
 
-def _format_cost_number(value: Optional[float]) -> Optional[str]:
+def _format_cost_number(value: float | None) -> str | None:
     """Format cost with six decimals (dot separator)."""
     if value is None:
         return None
     return f"{value:.6f}"
 
 
-def _format_cost_display(value: Optional[float]) -> Optional[str]:
+def _format_cost_display(value: float | None) -> str | None:
     """Format cost as localized string with currency (e.g., 0,000065 USD)."""
     if value is None:
         return None
@@ -70,21 +70,21 @@ class Session:
 
     def __init__(
         self,
-        backend_or_filepath: Optional[Union[str, Path]] = None,
+        backend_or_filepath: str | Path | None = None,
         # Local backend parameters
-        filepath: Optional[Union[str, Path]] = None,
+        filepath: str | Path | None = None,
         mode: str = "a",
         create_dirs: bool = True,
         encoding: str = "utf-8",
         # Explicit backend parameter
-        backend: Optional[str] = None,
+        backend: str | None = None,
         # Google Sheets backend parameters
-        sheet_id: Optional[str] = None,
-        credentials_path: Optional[str] = None,
-        credentials_json: Optional[Dict] = None,
+        sheet_id: str | None = None,
+        credentials_path: str | None = None,
+        credentials_json: dict | None = None,
         worksheet_name: str = "Logs",
         # Column filtering (now available for both backends)
-        columns: Optional[List[str]] = None,
+        columns: list[str] | None = None,
     ):
         """Initialize Session with local or Google Sheets backend."""
 
@@ -134,7 +134,7 @@ class Session:
             self._init_sheets_backend(sheet_id, credentials_path, credentials_json, worksheet_name)
 
     def _init_local_backend(
-        self, filepath: Optional[Union[str, Path]], mode: str, create_dirs: bool, encoding: str
+        self, filepath: str | Path | None, mode: str, create_dirs: bool, encoding: str
     ):
         """Initialize local file backend."""
         if filepath is None:
@@ -143,16 +143,16 @@ class Session:
         self.filepath = Path(filepath)
         self.mode = mode
         self.encoding = encoding
-        self._file_handle: Optional[Any] = None
+        self._file_handle: Any | None = None
 
         if create_dirs and mode in ("a", "w"):
             self.filepath.parent.mkdir(parents=True, exist_ok=True)
 
     def _init_sheets_backend(
         self,
-        sheet_id: Optional[str],
-        credentials_path: Optional[str],
-        credentials_json: Optional[Dict],
+        sheet_id: str | None,
+        credentials_path: str | None,
+        credentials_json: dict | None,
         worksheet_name: str,
     ):
         """Initialize Google Sheets backend."""
@@ -239,14 +239,14 @@ class Session:
 
             if not all_values:
                 self.worksheet.update("A1", [headers])
-                print(f"   ✅ Headers added to Google Sheets")
+                print("   ✅ Headers added to Google Sheets")
             elif not all_values[0] or all_values[0] != headers:
                 end_col = _col_to_a1(len(headers))
                 range_name = f"A1:{end_col}1"
                 self.worksheet.update(range_name, [headers])
-                print(f"   ✅ Headers updated in Google Sheets")
+                print("   ✅ Headers updated in Google Sheets")
             else:
-                print(f"   ✅ Headers already correct")
+                print("   ✅ Headers already correct")
 
             # Optional: Format headers (bold + background)
             try:
@@ -261,10 +261,10 @@ class Session:
             except Exception:
                 pass
 
-        except Exception as e:
+        except Exception:
             try:
                 self.worksheet.update("A1", [headers])
-                print(f"   ✅ Headers added (fallback method)")
+                print("   ✅ Headers added (fallback method)")
             except Exception as e2:
                 print(f"   ⚠️  Unable to add headers: {e2}")
 
@@ -544,7 +544,7 @@ class Session:
         if not self.filepath.exists():
             raise HILTError(f"File not found: {self.filepath}")
 
-        with open(self.filepath, "r", encoding=self.encoding) as f:
+        with open(self.filepath, encoding=self.encoding) as f:
             for line_num, line in enumerate(f, start=1):
                 line = line.strip()
                 if not line:

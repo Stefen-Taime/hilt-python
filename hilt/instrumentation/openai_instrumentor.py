@@ -1,25 +1,23 @@
 """Auto-instrumentation for OpenAI SDK."""
 
 import time
-from typing import Any
 
 from hilt.core.event import Event, Metrics
 from hilt.instrumentation.context import get_context
 from hilt.integrations.openai import (
     _calculate_cost,
-    _generate_conversation_uuid,
     _extract_status_code,
+    _generate_conversation_uuid,
+    _log_system_event,
     _unwrap_message_content,
     _usage_value,
-    _log_system_event,
 )
 
-try:
-    from openai import OpenAI, OpenAIError, RateLimitError  # type: ignore
+try:  # pragma: no cover - runtime import guard
     from openai.resources.chat import completions as chat_completions_module  # type: ignore
 
     OPENAI_AVAILABLE = True
-except ImportError:
+except ImportError:  # pragma: no cover - optional dependency
     OPENAI_AVAILABLE = False
     chat_completions_module = None
 

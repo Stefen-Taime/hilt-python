@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
-
+from typing import Any
 
 ALLOWED_ACTOR_TYPES = {"human", "agent", "tool", "system"}
 
@@ -34,8 +33,8 @@ class Actor:
 
     type: str
     id: str
-    name: Optional[str] = None
-    metadata: Optional[dict] = None
+    name: str | None = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.type not in ALLOWED_ACTOR_TYPES:
@@ -43,7 +42,7 @@ class Actor:
                 f"Invalid actor type '{self.type}'. Allowed types: {sorted(ALLOWED_ACTOR_TYPES)}"
             )
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert Actor to dictionary."""
         result = {
             "type": self.type,
@@ -59,7 +58,7 @@ class Actor:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Actor":
+    def from_dict(cls, data: dict[str, Any]) -> Actor:
         """Create Actor from dictionary."""
         return cls(
             type=data["type"],

@@ -1,7 +1,6 @@
 """Thread-safe context for HILT instrumentation."""
 
 import threading
-from typing import Optional
 from contextlib import contextmanager
 
 from hilt.io.session import Session
@@ -17,16 +16,16 @@ class InstrumentationContext:
     def __init__(self):
         self._local = threading.local()
         self._lock = threading.Lock()
-        self._global_session: Optional[Session] = None
+        self._global_session: Session | None = None
         self._is_instrumented = False
 
     @property
-    def session(self) -> Optional[Session]:
+    def session(self) -> Session | None:
         """Get the current thread's session or global session."""
         return getattr(self._local, "session", self._global_session)
 
     @session.setter
-    def session(self, value: Optional[Session]):
+    def session(self, value: Session | None):
         """Set the current thread's session."""
         self._local.session = value
 

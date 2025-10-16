@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
-
+from typing import Any
 
 # JSON Schema for Actor
-ACTOR_SCHEMA: Dict[str, Any] = {
+ACTOR_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "type": {"type": "string"},
@@ -20,7 +19,7 @@ ACTOR_SCHEMA: Dict[str, Any] = {
 
 
 # JSON Schema for Content
-CONTENT_SCHEMA: Dict[str, Any] = {
+CONTENT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "text": {"type": ["string", "null"]},
@@ -32,7 +31,7 @@ CONTENT_SCHEMA: Dict[str, Any] = {
 
 
 # JSON Schema for Metrics
-METRICS_SCHEMA: Dict[str, Any] = {
+METRICS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "tokens": {
@@ -51,7 +50,7 @@ METRICS_SCHEMA: Dict[str, Any] = {
 
 
 # JSON Schema for Event
-EVENT_SCHEMA: Dict[str, Any] = {
+EVENT_SCHEMA: dict[str, Any] = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
@@ -70,7 +69,7 @@ EVENT_SCHEMA: Dict[str, Any] = {
 }
 
 
-def validate_event(event_dict: Dict[str, Any]) -> bool:
+def validate_event(event_dict: dict[str, Any]) -> bool:
     """
     Validate an event dictionary against the schema.
 

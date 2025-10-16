@@ -18,17 +18,17 @@ Quick Start:
 """
 
 from hilt.__version__ import __version__
+from hilt.core.actor import Actor
 
 # Core
-from hilt.core.event import Event, Content, Metrics
-from hilt.core.actor import Actor
+from hilt.core.event import Content, Event, Metrics
 from hilt.core.exceptions import HILTError
-
-# Session (advanced use)
-from hilt.io.session import Session
 
 # Main API - Auto-instrumentation
 from hilt.instrumentation.auto import instrument, uninstrument
+
+# Session (advanced use)
+from hilt.io.session import Session
 
 __all__ = [
     "__version__",

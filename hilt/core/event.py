@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -27,9 +27,9 @@ ALLOWED_ACTIONS = {
 class Content(BaseModel):
     """Content of an event (text, images, etc.)."""
 
-    text: Optional[str] = None
-    images: Optional[list] = None
-    metadata: Optional[Dict[str, Any]] = None
+    text: str | None = None
+    images: list | None = None
+    metadata: dict[str, Any] | None = None
 
     class Config:
         extra = "allow"
@@ -38,9 +38,9 @@ class Content(BaseModel):
 class Metrics(BaseModel):
     """Metrics associated with an event."""
 
-    tokens: Optional[Dict[str, int]] = None
-    cost_usd: Optional[float] = None
-    latency_ms: Optional[int] = None
+    tokens: dict[str, int] | None = None
+    cost_usd: float | None = None
+    latency_ms: int | None = None
 
     class Config:
         extra = "allow"
@@ -57,12 +57,12 @@ class Event(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=get_utc_timestamp)
     session_id: str
-    actor: Union[Actor, Dict[str, Any]]
+    actor: Actor | dict[str, Any]
     action: str
-    content: Union[Content, Dict[str, Any], None] = None
-    metrics: Optional[Metrics] = None
-    provenance: Optional[Dict[str, Any]] = None
-    extensions: Optional[Dict[str, Any]] = None
+    content: Content | dict[str, Any] | None = None
+    metrics: Metrics | None = None
+    provenance: dict[str, Any] | None = None
+    extensions: dict[str, Any] | None = None
 
     @field_validator("actor", mode="before")
     @classmethod
@@ -89,7 +89,7 @@ class Event(BaseModel):
             return Content(**v)
         return v
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert Event to dictionary."""
         result = {
             "event_id": self.event_id,
@@ -122,7 +122,7 @@ class Event(BaseModel):
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Event":
+    def from_dict(cls, data: dict[str, Any]) -> Event:
         """Create Event from dictionary."""
         # Parse timestamp if it's a string
         if isinstance(data.get("timestamp"), str):
@@ -131,7 +131,7 @@ class Event(BaseModel):
         return cls(**data)
 
     @classmethod
-    def from_json(cls, json_str: str) -> "Event":
+    def from_json(cls, json_str: str) -> Event:
         """Create Event from JSON string."""
         data = json.loads(json_str)
         return cls.from_dict(data)

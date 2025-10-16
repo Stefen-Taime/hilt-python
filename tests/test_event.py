@@ -1,7 +1,8 @@
 """Tests for Event class."""
 
 import pytest
-from hilt import Event, Actor, Content
+
+from hilt import Actor, Content, Event
 
 
 def test_event_creation_minimal(sample_event):

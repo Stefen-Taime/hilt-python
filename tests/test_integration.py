@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import pytest
+
 from hilt.core.event import Event
 from hilt.io.session import Session
 

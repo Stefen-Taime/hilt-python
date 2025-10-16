@@ -4,7 +4,7 @@ from pathlib import Path
 
 from hilt.__version__ import __version__
 from hilt.core.actor import Actor
-from hilt.core.event import Event, Content
+from hilt.core.event import Content, Event
 from hilt.instrumentation.auto import instrument, uninstrument
 from hilt.instrumentation.context import get_context
 

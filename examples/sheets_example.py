@@ -1,8 +1,10 @@
 """Test HILT with custom Google Sheets columns."""
 
 import os
-from hilt import instrument
+
 from openai import OpenAI
+
+from hilt import instrument
 
 if not os.getenv("OPENAI_API_KEY") or not os.getenv("GOOGLE_SHEET_ID"):
     print("❌ Missing credentials")

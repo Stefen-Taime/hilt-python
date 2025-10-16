@@ -1,27 +1,26 @@
 """Auto-instrumentation for HILT - Zero friction LLM observability."""
 
-from typing import Optional, List, Dict, Union
 from pathlib import Path
 
-from hilt.io.session import Session
 from hilt.instrumentation.context import get_context
 from hilt.instrumentation.openai_instrumentor import instrument_openai, uninstrument_openai
+from hilt.io.session import Session
 
 
 def instrument(
     # Backend selection
-    backend: Optional[str] = None,
+    backend: str | None = None,
     # Local backend
-    filepath: Optional[Union[str, Path]] = None,
+    filepath: str | Path | None = None,
     # Google Sheets backend
-    sheet_id: Optional[str] = None,
-    credentials_path: Optional[str] = None,
-    credentials_json: Optional[Dict] = None,
+    sheet_id: str | None = None,
+    credentials_path: str | None = None,
+    credentials_json: dict | None = None,
     worksheet_name: str = "Logs",
     # Column filtering - NOW WORKS FOR BOTH BACKENDS!
-    columns: Optional[List[str]] = None,
+    columns: list[str] | None = None,
     # Providers to instrument
-    providers: Optional[List[str]] = None,
+    providers: list[str] | None = None,
 ) -> Session:
     """
     🚀 Enable automatic LLM observability with HILT.
@@ -109,17 +108,18 @@ def instrument(
             filepath=filepath,
             mode="a",
             create_dirs=True,
-            columns=columns,  # ← FIX: Maintenant passé au Session!
+            columns=columns,
         )
-        print(f"✅ HILT instrumentation enabled")
-        print(f"   Backend: Local JSONL")
+        print("✅ HILT instrumentation enabled")
+        print("   Backend: Local JSONL")
         print(f"   File: {filepath}")
         if columns:
+            message_visibility = "excluded" if "message" not in columns else "included"
             print(
-                f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})"
+                f"   Columns: {len(columns)} selected (message {message_visibility})"
             )
         else:
-            print(f"   Columns: All (full events)")
+            print("   Columns: All (full events)")
 
     elif backend == "sheets":
         session = Session(
@@ -130,13 +130,14 @@ def instrument(
             worksheet_name=worksheet_name,
             columns=columns,
         )
-        print(f"✅ HILT instrumentation enabled")
-        print(f"   Backend: Google Sheets")
+        print("✅ HILT instrumentation enabled")
+        print("   Backend: Google Sheets")
         print(f"   Sheet ID: {sheet_id}")
         print(f"   Worksheet: {worksheet_name}")
         if columns:
+            message_visibility = "excluded" if "message" not in columns else "included"
             print(
-                f"   Columns: {len(columns)} selected (message {'excluded' if 'message' not in columns else 'included'})"
+                f"   Columns: {len(columns)} selected (message {message_visibility})"
             )
 
     else:
@@ -175,7 +176,7 @@ def uninstrument():
     if context.session:
         try:
             context.session.close()
-        except:
+        except Exception:
             pass
 
     # Clear context

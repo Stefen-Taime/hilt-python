@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from hilt.core.event import Event, Content, Metrics
 from hilt.core.actor import Actor
-from hilt.core.exceptions import HILTError, ValidationError, SessionError
+from hilt.core.event import Content, Event, Metrics
+from hilt.core.exceptions import HILTError, SessionError, ValidationError
 
 __all__ = [
     "Event",

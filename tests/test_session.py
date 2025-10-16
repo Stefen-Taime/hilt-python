@@ -4,10 +4,11 @@ This file REPLACES the old test that assumed the local backend ignored `columns`
 """
 
 import json
-import pytest
 from pathlib import Path
-from hilt import Session, Event, Actor, Content, Metrics, HILTError
 
+import pytest
+
+from hilt import Actor, Content, Event, Metrics, Session
 
 # ============================================================================
 # NEW TESTS FOR LOCAL BACKEND COLUMN FILTERING

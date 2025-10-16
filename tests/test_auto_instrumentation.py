@@ -1,10 +1,11 @@
 """Tests for auto-instrumentation functionality."""
 
-import os
 import json
-import pytest
+import os
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from hilt import instrument, uninstrument
 from hilt.instrumentation.context import get_context
@@ -69,7 +70,7 @@ class TestAutoInstrumentation:
 
     def test_instrument_local_backend(self, temp_log_file: Path):
         uninstrument()
-        session = instrument(backend="local", filepath=str(temp_log_file))
+        _session = instrument(backend="local", filepath=str(temp_log_file))
         context = get_context()
         assert context.is_instrumented
         assert context.session is not None
@@ -78,7 +79,7 @@ class TestAutoInstrumentation:
 
     def test_instrument_with_filepath_only(self, temp_log_file: Path):
         uninstrument()
-        session = instrument(filepath=str(temp_log_file))
+        _session = instrument(filepath=str(temp_log_file))
         context = get_context()
         assert context.is_instrumented
         assert context.session.backend == "local"
@@ -105,7 +106,7 @@ class TestAutoInstrumentation:
 
     def test_multiple_instrument_calls(self, temp_log_file: Path):
         uninstrument()
-        session1 = instrument(backend="local", filepath=str(temp_log_file))
+        _ = instrument(backend="local", filepath=str(temp_log_file))
         temp_log_file2 = temp_log_file.parent / "test2.jsonl"
         session2 = instrument(backend="local", filepath=str(temp_log_file2))
         context = get_context()
@@ -142,7 +143,7 @@ class TestOpenAIInstrumentation:
         # Lis le log
         lines = temp_log_file.read_text().splitlines()
         assert len(lines) == 2, f"Expected 2 events, got {len(lines)}"
-        data = [json.loads(l) for l in lines]
+        data = [json.loads(line) for line in lines]
 
         # On doit avoir les 2 actions
         actions = [d.get("action") for d in data]
@@ -164,7 +165,7 @@ class TestOpenAIInstrumentation:
         Sans instrumentation active, l'appel passe mais aucun log n'est écrit.
         """
         uninstrument()
-        from hilt.instrumentation.openai_instrumentor import chat_completions_module, _instrumentor
+        from hilt.instrumentation.openai_instrumentor import _instrumentor, chat_completions_module
 
         assert not _instrumentor._is_instrumented
 
