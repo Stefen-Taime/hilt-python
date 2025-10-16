@@ -22,13 +22,13 @@
 ## Installation
 
 ```bash
-pip install hilt
+pip install hilt-python
 ```
 
 Need Google Sheets streaming? Install the Sheets extra:
 
 ```bash
-pip install "hilt[sheets]"
+pip install "hilt-python[sheets]"
 ```
 
 ## Quick start
