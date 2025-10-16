@@ -115,9 +115,7 @@ def instrument(
         print(f"   File: {filepath}")
         if columns:
             message_visibility = "excluded" if "message" not in columns else "included"
-            print(
-                f"   Columns: {len(columns)} selected (message {message_visibility})"
-            )
+            print(f"   Columns: {len(columns)} selected (message {message_visibility})")
         else:
             print("   Columns: All (full events)")
 
@@ -136,9 +134,7 @@ def instrument(
         print(f"   Worksheet: {worksheet_name}")
         if columns:
             message_visibility = "excluded" if "message" not in columns else "included"
-            print(
-                f"   Columns: {len(columns)} selected (message {message_visibility})"
-            )
+            print(f"   Columns: {len(columns)} selected (message {message_visibility})")
 
     else:
         raise ValueError(f"Invalid backend: {backend}. Must be 'local' or 'sheets'")
