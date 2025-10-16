@@ -1,6 +1,6 @@
 # HILT – Human–AI Log Tracing
 
-[![HILT logo](docs/img.png)](https://github.com/Stefen-Taime/hilt-python)
+[![HILT logo](docs/logo.png)](https://github.com/Stefen-Taime/hilt-python)
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/Stefen-Taime/hilt-python/test.yml?branch=main)](https://github.com/Stefen-Taime/hilt-python/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/Stefen-Taime/hilt-python)](https://codecov.io/gh/Stefen-Taime/hilt-python)
