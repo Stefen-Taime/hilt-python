@@ -7,15 +7,11 @@ from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, TextIO, cast
+from typing import Any, TextIO, cast
 
 from hilt.core.event import Event
 from hilt.core.exceptions import HILTError
 from hilt.utils.timestamp import get_utc_timestamp
-
-if TYPE_CHECKING:  # pragma: no cover - import-time typing hints
-    import gspread  # type: ignore[import-not-found]
-    from google.oauth2.service_account import Credentials  # type: ignore[import-not-found]
 
 # All available columns for Google Sheets and local filtering
 ALL_COLUMNS = [
