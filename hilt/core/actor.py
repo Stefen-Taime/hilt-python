@@ -44,7 +44,7 @@ class Actor:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert Actor to dictionary."""
-        result = {
+        result: dict[str, Any] = {
             "type": self.type,
             "id": self.id,
         }

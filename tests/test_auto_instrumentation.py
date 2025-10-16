@@ -252,6 +252,7 @@ class TestEndToEnd:
     """End-to-end integration tests."""
 
     @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set")
+    @pytest.mark.skip(reason="Real OpenAI call disabled in test environment")
     def test_real_openai_call(self, temp_log_file: Path):
         uninstrument()
         instrument(backend="local", filepath=str(temp_log_file))

@@ -28,7 +28,7 @@ class Content(BaseModel):
     """Content of an event (text, images, etc.)."""
 
     text: str | None = None
-    images: list | None = None
+    images: list[Any] | None = None
     metadata: dict[str, Any] | None = None
 
     class Config:
@@ -57,20 +57,22 @@ class Event(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=get_utc_timestamp)
     session_id: str
-    actor: Actor | dict[str, Any]
+    actor: Actor
     action: str
-    content: Content | dict[str, Any] | None = None
+    content: Content | None = None
     metrics: Metrics | None = None
     provenance: dict[str, Any] | None = None
     extensions: dict[str, Any] | None = None
 
     @field_validator("actor", mode="before")
     @classmethod
-    def validate_actor(cls, v):
+    def validate_actor(cls, value: Actor | dict[str, Any]) -> Actor:
         """Convert dict to Actor if needed."""
-        if isinstance(v, dict):
-            return Actor(**v)
-        return v
+        if isinstance(value, Actor):
+            return value
+        if isinstance(value, dict):
+            return Actor(**value)
+        raise TypeError("actor must be an Actor or mapping")
 
     @field_validator("action")
     @classmethod
@@ -81,13 +83,15 @@ class Event(BaseModel):
 
     @field_validator("content", mode="before")
     @classmethod
-    def validate_content(cls, v):
+    def validate_content(cls, value: Content | dict[str, Any] | None) -> Content | None:
         """Convert dict to Content if needed."""
-        if v is None:
+        if value is None:
             return None
-        if isinstance(v, dict):
-            return Content(**v)
-        return v
+        if isinstance(value, Content):
+            return value
+        if isinstance(value, dict):
+            return Content(**value)
+        raise TypeError("content must be Content, mapping, or None")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert Event to dictionary."""
@@ -95,18 +99,14 @@ class Event(BaseModel):
             "event_id": self.event_id,
             "timestamp": self.timestamp.isoformat(),
             "session_id": self.session_id,
-            "actor": self.actor.to_dict() if isinstance(self.actor, Actor) else self.actor,
+            "actor": self.actor.to_dict(),
             "action": self.action,
         }
 
-        if self.content:
-            result["content"] = (
-                self.content.model_dump(exclude_none=True)
-                if isinstance(self.content, Content)
-                else self.content
-            )
+        if self.content is not None:
+            result["content"] = self.content.model_dump(exclude_none=True)
 
-        if self.metrics:
+        if self.metrics is not None:
             result["metrics"] = self.metrics.model_dump(exclude_none=True)
 
         if self.provenance:
@@ -122,7 +122,7 @@ class Event(BaseModel):
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Event:
+    def from_dict(cls, data: dict[str, Any]) -> "Event":
         """Create Event from dictionary."""
         # Parse timestamp if it's a string
         if isinstance(data.get("timestamp"), str):

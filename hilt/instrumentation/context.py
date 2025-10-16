@@ -2,6 +2,7 @@
 
 import threading
 from contextlib import contextmanager
+from typing import Generator
 
 from hilt.io.session import Session
 
@@ -13,7 +14,7 @@ class InstrumentationContext:
     Manages the active session and configuration in a thread-safe manner.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._local = threading.local()
         self._lock = threading.Lock()
         self._global_session: Session | None = None
@@ -25,7 +26,7 @@ class InstrumentationContext:
         return getattr(self._local, "session", self._global_session)
 
     @session.setter
-    def session(self, value: Session | None):
+    def session(self, value: Session | None) -> None:
         """Set the current thread's session."""
         self._local.session = value
 
@@ -34,13 +35,13 @@ class InstrumentationContext:
         """Check if instrumentation is active."""
         return self._is_instrumented
 
-    def set_global_session(self, session: Session):
+    def set_global_session(self, session: Session) -> None:
         """Set the global session (used by all threads)."""
         with self._lock:
             self._global_session = session
             self._is_instrumented = True
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear the instrumentation context."""
         with self._lock:
             self._global_session = None
@@ -49,7 +50,7 @@ class InstrumentationContext:
                 delattr(self._local, "session")
 
     @contextmanager
-    def use_session(self, session: Session):
+    def use_session(self, session: Session) -> Generator[None, None, None]:
         """
         Temporarily use a different session in this context.
 
