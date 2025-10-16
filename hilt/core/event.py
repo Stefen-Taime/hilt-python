@@ -122,7 +122,7 @@ class Event(BaseModel):
         return json.dumps(self.to_dict(), ensure_ascii=False)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Event":
+    def from_dict(cls, data: dict[str, Any]) -> Event:
         """Create Event from dictionary."""
         # Parse timestamp if it's a string
         if isinstance(data.get("timestamp"), str):
